@@ -1,0 +1,110 @@
+=== ИНСТРУКЦИЯ ПО ПРИМЕНЕНИЮ APPLE-STYLE ДИЗАЙНА ===
+
+В файле /src/app/components/FinanceView.tsx
+
+Найди строку 703 и замени:
+bg-zinc-50
+НА:
+bg-white
+
+Найди строки 710-724 (кнопки РАСХОДЫ/ДОХОДЫ) и замени на:
+<button
+    onClick={() => setViewMode('expense')}
+    className={`flex-1 py-3 rounded-2xl text-base font-semibold transition-all ${
+        viewMode === 'expense'
+        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+        : 'bg-gray-100 text-gray-400'
+    }`}
+>
+    Расходы
+</button>
+<button
+    onClick={() => setViewMode('income')}
+    className={`flex-1 py-3 rounded-2xl text-base font-semibold transition-all ${
+        viewMode === 'income'
+        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+        : 'bg-gray-100 text-gray-400'
+    }`}
+>
+    Доходы
+</button>
+
+Найди строки 733-748 (фильтры времени) и замени labels:
+'ДЕНЬ' → 'День'
+'НЕДЕЛЯ' → 'Неделя'
+'МЕСЯЦ' → 'Месяц'  
+'ГОД' → 'Год'
+
+И классы на:
+className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
+    timeFilter === filter.value
+    ? 'text-orange-500 bg-orange-50'
+    : 'text-gray-400 bg-transparent'
+}`}
+
+Найди строки 755-767 (навигация) и замени на:
+<button 
+    onClick={() => navigateTime('prev')} 
+    className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-gray-50 transition-all"
+>
+    <ChevronLeft size={20} className="text-gray-400" />
+</button>
+<span className="text-lg font-semibold text-gray-900 min-w-[140px] text-center">{getDateLabel()}</span>
+<button 
+    onClick={() => navigateTime('next')} 
+    className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-gray-50 transition-all"
+>
+    <ChevronRight size={20} className="text-gray-400" />
+</button>
+
+Найди строки 771-792 (оранжевая карточка) и ЗАМЕНИ НА:
+<div className="px-6 pb-8">
+    <div className="text-center py-12">
+        <div className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wide">
+            {viewMode === 'expense' ? 'Расходы' : 'Доходы'}
+        </div>
+        <div className="text-6xl font-bold text-gray-900 mb-2 tracking-tight">
+            {formatMoney(totalAmount)} ₽
+        </div>
+        <div className="text-sm text-gray-400 font-medium">
+            {filteredTransactions.length} {filteredTransactions.length === 1 ? 'операция' : filteredTransactions.length < 5 ? 'операции' : 'операций'}
+        </div>
+    </div>
+</div>
+
+Найди строки 795-824 (круг) и замени:
+- border-zinc-200 → НЕТ границы
+- bg-white → bg-gray-50  
+- rounded-2xl → rounded-3xl
+- p-6 → p-8
+- height={200} → height={280}
+- innerRadius={60} → innerRadius={85}
+- outerRadius={90} → outerRadius={125}
+- paddingAngle={2} → paddingAngle={4}
+- УДАЛИ текст "Категории" в центре (строки 815-821)
+
+Найди строки 840-847 (карточки категорий) и УДАЛИ emoji 📊
+Замени:
+- border border-zinc-200 → НЕТ границы
+- p-4 → pb-4 pt-4
+- rounded-2xl → НЕТ скруглений
+- ДОБАВЬ: border-b border-gray-100
+- w-14 h-14 → УДАЛИТЬ весь блок с emoji
+
+Найди строки 878-901 (кнопки) и замени на:
+<div className="flex gap-3 mt-4">
+    <button 
+        onClick={...}
+        className="flex-1 py-3 rounded-xl text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-all"
+    >
+        Изменить
+    </button>
+    <button 
+        onClick={...}
+        className="flex-1 py-3 rounded-xl text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20"
+    >
+        Удалить
+    </button>
+</div>
+
+=== КОНЕЦ ПАТЧА ===
