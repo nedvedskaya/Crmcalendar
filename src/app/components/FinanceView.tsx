@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Plus, X, ArrowDownLeft, ArrowUpRight, Wallet, Edit3, Trash2, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Tag, BarChart3, ChevronDown } from 'lucide-react';
+import { Plus, X, ArrowDownLeft, ArrowUpRight, Wallet, Edit3, Trash2, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Tag, BarChart3, ChevronDown, Download } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { TransactionItem } from '@/app/components/TransactionItem';
+import * as XLSX from 'xlsx';
 
 // Импорт утилит и констант
 import { BTN_METAL_DARK, BTN_METAL, CARD_METAL } from '@/utils/constants';
@@ -290,6 +291,55 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
         
         return grouped;
     }, [transactions]);
+    
+    // Функция экспорта в Excel
+    const exportToExcel = () => {
+        if (transactions.length === 0) {
+            alert('Нет данных для экспорта');
+            return;
+        }
+
+        // Подготовка данных для экспорта
+        const exportData = transactions.map(t => {
+            const category = categories.find(c => c.id === t.category);
+            const transactionTags = tags.filter(tag => t.tags?.includes(tag.id));
+            
+            return {
+                'Дата': formatDate(t.date || t.createdDate),
+                'Тип': t.type === 'income' ? 'Доход' : 'Расход',
+                'Название': t.title,
+                'Сумма': Number(t.amount || 0),
+                'Описание': t.sub || '',
+                'Категория': category?.name || 'Без категории',
+                'Теги': transactionTags.map(tag => tag.name).join(', ') || '',
+                'Филиал': t.branch || ''
+            };
+        });
+
+        // Создание рабочей книги Excel
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Операции');
+
+        // Автоподбор ширины колонок
+        const maxWidth = exportData.reduce((acc, row) => {
+            Object.keys(row).forEach((key, i) => {
+                const cellLength = String(row[key]).length;
+                acc[i] = Math.max(acc[i] || 10, cellLength + 2);
+            });
+            return acc;
+        }, [] as number[]);
+
+        worksheet['!cols'] = maxWidth.map(w => ({ wch: w }));
+
+        // Генерация имени файла с текущей датой
+        const now = new Date();
+        const dateStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
+        const fileName = `Финансы_${dateStr}.xlsx`;
+
+        // Сохранение файла
+        XLSX.writeFile(workbook, fileName);
+    };
     
     return (
       <div className="flex flex-col h-full bg-zinc-50 overflow-hidden relative">
@@ -595,7 +645,7 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
         {activeSection === 'operations' && (
             <div className="flex-1 overflow-y-auto pb-44 bg-zinc-50">
               {/* Баланс - градиент как в аналитике */}
-              <div className="px-6 pt-6 pb-8">
+              <div className="px-6 pt-6 pb-4">
                 <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-3xl p-6 text-center shadow-xl">
                   <div className="text-sm font-medium text-white mb-2 uppercase tracking-wide">Баланс</div>
                   <div className="text-5xl font-bold text-white mb-6 tracking-tight">{formatMoney(balance)} ₽</div>
@@ -612,6 +662,21 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
                   </div>
                 </div>
               </div>
+
+              {/* Кнопка экспорта */}
+              {transactions.length > 0 && (
+                <div className="px-6 pb-4">
+                  <button
+                    onClick={exportToExcel}
+                    className="w-full flex items-center justify-center gap-2 bg-white border-2 border-zinc-200 rounded-2xl py-3 px-4 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                  >
+                    <Download size={18} className="text-zinc-600 group-hover:text-orange-500 transition-colors" />
+                    <span className="text-sm font-bold text-zinc-900 group-hover:text-orange-500 transition-colors">
+                      Экспорт в Excel
+                    </span>
+                  </button>
+                </div>
+              )}
               
               {/* Операции по датам */}
               {Object.keys(transactionsByDate).length > 0 ? (

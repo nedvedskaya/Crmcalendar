@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Plus, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Search, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { Header } from '@/app/components/ui';
 import { ClientListCard } from '@/app/components/clients';
 import { useSearch } from '@/app/hooks';
 import { getDateStr } from '@/utils/helpers';
+import * as XLSX from 'xlsx';
 
 interface ClientsViewProps {
   allClients: any[];
@@ -12,6 +13,7 @@ interface ClientsViewProps {
   onOpenClient: (client: any) => void;
   onEditClient: (params: { client: any; mode: string }) => void;
   ClientForm: React.ComponentType<any>;
+  currentBranch?: string;
 }
 
 export const ClientsView = ({ 
@@ -20,7 +22,8 @@ export const ClientsView = ({
   onDeleteClient, 
   onOpenClient, 
   onEditClient,
-  ClientForm
+  ClientForm,
+  currentBranch = 'MSK'
 }: ClientsViewProps) => {
   const [isAdding, setIsAdding] = useState(false);
   const [showTodayClients, setShowTodayClients] = useState(false);
@@ -33,6 +36,50 @@ export const ClientsView = ({
   const today = getDateStr(0);
   const todayClients = allClients.filter(c => c.createdDate === today);
 
+  // Функция экспорта базы клиентов в Excel
+  const exportToExcel = () => {
+    if (allClients.length === 0) {
+      alert('Нет клиентов для экспорта');
+      return;
+    }
+
+    // Подготовка данных для экспорта
+    const exportData = allClients.map(client => ({
+      'ФИО': client.name || '',
+      'Телефон': client.phone || '',
+      'Город': client.city || '',
+      'Марка авто': client.carBrand || '',
+      'Модель авто': client.carModel || '',
+      'Комментарии': client.notes || '',
+      'Дата добавления': client.createdDate || '',
+      'Филиал': client.branch || ''
+    }));
+
+    // Создание рабочей книги Excel
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Клиенты');
+
+    // Автоподбор ширины колонок
+    const maxWidth = exportData.reduce((acc, row) => {
+      Object.keys(row).forEach((key, i) => {
+        const cellLength = String(row[key]).length;
+        acc[i] = Math.max(acc[i] || 10, cellLength + 2);
+      });
+      return acc;
+    }, [] as number[]);
+
+    worksheet['!cols'] = maxWidth.map(w => ({ wch: w }));
+
+    // Генерация имени файла с текущей датой
+    const now = new Date();
+    const dateStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
+    const fileName = `Клиенты_${dateStr}.xlsx`;
+
+    // Сохранение файла
+    XLSX.writeFile(workbook, fileName);
+  };
+
   return (
     <div className="flex flex-col h-full bg-zinc-50 overflow-hidden relative">
       {isAdding && (
@@ -41,15 +88,34 @@ export const ClientsView = ({
             onAddClient(d, t, r); 
             setIsAdding(false); 
           }} 
-          onCancel={() => setIsAdding(false)} 
+          onCancel={() => setIsAdding(false)}
+          currentBranch={currentBranch}
         />
       )}
       
       <div className="sticky top-0 z-30 bg-white shadow-sm shrink-0">
-        <Header title="Клиенты" actionIcon={Plus} onAction={() => setIsAdding(true)} />
+        {/* Кастомный заголовок с кнопкой экспорта */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-black">Клиенты</h1>
+            <button
+              onClick={exportToExcel}
+              className="w-8 h-8 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center transition-all active:scale-95"
+              title="Экспорт в Excel"
+            >
+              <Download size={16} className="text-orange-600" />
+            </button>
+          </div>
+          <button
+            onClick={() => setIsAdding(true)}
+            className="w-12 h-12 rounded-full bg-black flex items-center justify-center hover:scale-110 transition-all active:scale-95"
+          >
+            <Plus size={24} className="text-white" />
+          </button>
+        </div>
         
         {/* Поиск */}
-        <div className="px-6 pb-3 relative">
+        <div className="px-6 pb-3 pt-3 relative">
           <Search className="absolute left-9 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
           <input 
             type="text" 
@@ -65,18 +131,15 @@ export const ClientsView = ({
           <div className="px-6 pb-3">
             <button 
               onClick={() => setShowTodayClients(!showTodayClients)}
-              className="w-full bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-3 flex items-center justify-between hover:shadow-md transition-all"
+              className="w-full bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-xl py-2 px-3 flex items-center justify-between hover:shadow-sm transition-all"
             >
-              <div className="flex items-center gap-3">
-                <div className="bg-orange-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-black text-sm">
+              <div className="flex items-center gap-2">
+                <div className="bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs">
                   {todayClients.length}
                 </div>
-                <div className="text-left">
-                  <p className="text-xs font-black text-orange-900 uppercase tracking-wide">Новых клиентов сегодня</p>
-                  <p className="text-[10px] text-orange-600 font-medium">Нажмите для просмотра</p>
-                </div>
+                <p className="text-[11px] font-bold text-orange-900 uppercase tracking-wide">Новых клиентов сегодня</p>
               </div>
-              <ChevronDown size={18} className={`text-orange-600 transition-transform ${showTodayClients ? 'rotate-180' : ''}`} />
+              <ChevronDown size={16} className={`text-orange-600 transition-transform ${showTodayClients ? 'rotate-180' : ''}`} />
             </button>
             
             {showTodayClients && (

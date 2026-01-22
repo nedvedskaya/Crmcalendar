@@ -18,6 +18,8 @@ import { BookingCard } from '@/app/components/bookings';
 import { FormField, TaskFormFields, BookingFormFields } from '@/app/components/forms';
 import { ClientsView as ClientsViewComponent } from '@/app/views';
 import { CalendarGrid } from '@/app/components/CalendarGrid';
+import { LoginScreen } from '@/app/components/LoginScreen';
+import { UserMenu } from '@/app/components/UserMenu';
 
 // Импорт утилит и констант
 import { 
@@ -35,6 +37,8 @@ import {
   getInitialClientState, getInitialCalendarEntryState 
 } from '@/utils/initialStates';
 import { Header } from '@/app/components/ui/Header';
+import { isAuthenticated, saveUserAuth, getUserAuth } from '@/utils/auth';
+import { hasPermission, canAccessTab, getAvailableTabs, isAdmin } from '@/utils/permissions';
 
 // --- HELPER COMPONENTS ---
 
@@ -269,13 +273,17 @@ const AppointmentInputs = ({ data, onChange, categories }) => {
     );
 };
 
-const TabBar = ({ activeTab, setActiveTab }) => {
-  const tabs = [
+const TabBar = ({ activeTab, setActiveTab, userRole = 'owner' }) => {
+  const allTabs = [
     { id: 'clients', icon: Users, label: 'Клиенты' },
     { id: 'tasks', icon: CheckSquare, label: 'Задачи' },
     { id: 'calendar', icon: CalendarIcon, label: 'Календарь' },
     { id: 'finance', icon: PieChart, label: 'Финансы' },
   ];
+  
+  // Фильтруем вкладки по правам доступа
+  const tabs = allTabs.filter(tab => canAccessTab(userRole, tab.id));
+  
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-zinc-200 z-[250] h-[84px] pb-safe shrink-0">
       <div className="flex justify-between items-center max-w-lg mx-auto h-full px-4">
@@ -358,7 +366,7 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit, client }) => {
 
 // --- 4. FORM COMPONENT (FIXED SCROLL) ---
 
-const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент", readOnlyIdentity = false }) => {
+const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент", readOnlyIdentity = false, currentBranch = 'MSK' }) => {
   const [formData, setFormData] = useState(client || getInitialClientState());
   const [newTasks, setNewTasks] = useState([]);
   const [taskInput, setTaskInput] = useState(() => getInitialTaskState(currentBranch));
@@ -548,11 +556,11 @@ const ClientDetails = ({ client, onBack, tasks, onEdit, onAddTask, onDelete, onT
     const activeRecords = clientRecords.filter(r => !r.isCompleted && r.date >= today);
     const archivedRecords = clientRecords
         .filter(r => r.isCompleted || r.date < today)
-        .sort((a, b) => b.date.localeCompare(a.date)); // Сортируем от новых к старым
+        .sort((a, b) => b.date.localeCompare(a.date)); // Сортируе�� от новых к старым
     
     // Подсчет общей суммы за все время (только полностью оплаченные)
     const totalEarnings = clientRecords.reduce((sum, record) => {
-        // Учитываем только полностью оплаченные брони
+        // Учи��ываем только полностью оплаченные брони
         if (record.paymentStatus === 'paid') {
             const amount = Number(record.amount) || 0;
             return sum + amount;
@@ -1439,6 +1447,11 @@ const CalendarView = ({ events, clients, onAddRecord, onOpenClient, categories, 
 // --- 6. MAIN APP ---
 
 const App = () => {
+  // Состояние авторизации
+  const [isAuth, setIsAuth] = useState(() => isAuthenticated());
+  const [user, setUser] = useState(() => getUserAuth());
+
+  // ВСЕ хуки должны быть вызваны ДО любого условного return
   const [activeTab, setActiveTab] = useState('clients');
   const [currentBranch, setCurrentBranch] = useState('msk'); 
   const [clients, setClients] = useState(INITIAL_CLIENTS);
@@ -1450,21 +1463,6 @@ const App = () => {
   const [selectedClient, setSelectedClient] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
   
-  // Одноразовая очистка старых данных
-  useEffect(() => {
-    const clearKey = 'financeDataCleared_v2';
-    if (!safeLocalStorage.hasItem(clearKey)) {
-      safeLocalStorage.removeItem('financeCategories');
-      safeLocalStorage.removeItem('financeTags');
-      safeLocalStorage.removeItem('financeTransactions');
-      safeLocalStorage.setItem(clearKey, true);
-      // Очищаем текущие данные
-      setCategories([]);
-      setTags([]);
-      setTransactions([]);
-    }
-  }, []);
-
   // Загрузка категорий из localStorage
   const [categories, setCategories] = useState(() => {
     return safeLocalStorage.getItem('financeCategories', []);
@@ -1474,6 +1472,20 @@ const App = () => {
   const [tags, setTags] = useState(() => {
     return safeLocalStorage.getItem('financeTags', []);
   });
+
+  // Одноразовая очистка старых данных
+  useEffect(() => {
+    const clearKey = 'financeDataCleared_v2';
+    if (!safeLocalStorage.hasItem(clearKey)) {
+      safeLocalStorage.removeItem('financeCategories');
+      safeLocalStorage.removeItem('financeTags');
+      safeLocalStorage.removeItem('financeTransactions');
+      safeLocalStorage.setItem(clearKey, true);
+      setCategories([]);
+      setTags([]);
+      setTransactions([]);
+    }
+  }, []);
 
   // Сохранение категорий в localStorage
   useEffect(() => {
@@ -1504,6 +1516,24 @@ const App = () => {
       safeLocalStorage.setItem(migrationKey, true);
     }
   }, [clients]);
+
+  // Обработка входа
+  const handleLogin = (userData: { name: string; role: string }) => {
+    saveUserAuth(userData);
+    setUser(getUserAuth());
+    setIsAuth(true);
+  };
+
+  // Обработка выхода
+  const handleLogout = () => {
+    setIsAuth(false);
+    setUser(null);
+  };
+
+  // Если не авторизован - показываем экран входа
+  if (!isAuth) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   const addTransaction = (amount, title, sub, type = 'income', clientName = '', category = '') => {
       const now = new Date();
@@ -1683,16 +1713,19 @@ const App = () => {
 
   return (
     <div className="w-full h-screen bg-white flex flex-col overflow-hidden">
+      {/* Меню пользователя с кнопкой выхода */}
+      <UserMenu onLogout={handleLogout} />
+      
       <div className="flex-1 relative overflow-hidden bg-zinc-50">
-          {activeTab === 'clients' && <ClientsView allClients={clients} onAddClient={handleAddClient} onDeleteClient={(id) => setClients(clients.filter(cl => cl.id !== id))} onOpenClient={setSelectedClient} onEditClient={setEditingClient} ClientForm={ClientForm} />}
+          {activeTab === 'clients' && <ClientsView allClients={clients} onAddClient={handleAddClient} onDeleteClient={(id) => setClients(clients.filter(cl => cl.id !== id))} onOpenClient={setSelectedClient} onEditClient={setEditingClient} ClientForm={ClientForm} currentBranch={currentBranch} />}
           {activeTab === 'tasks' && <TasksView tasks={tasks} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddTask={(t) => setTasks([t, ...tasks])} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} clients={clients} currentBranch={currentBranch} />}
           {activeTab === 'calendar' && <CalendarView events={filteredEvents} clients={clients} onAddRecord={handleAddRecord} onOpenClient={setSelectedClient} categories={categories} currentBranch={currentBranch} />}
           {activeTab === 'finance' && <FinanceView transactions={transactions} onAddTransaction={handleAddManualTransaction} onEditTransaction={handleEditTransaction} onDeleteTransaction={handleDeleteTransaction} categories={categories} onAddCategory={handleAddCategory} onEditCategory={handleEditCategory} onDeleteCategory={handleDeleteCategory} tags={tags} onAddTag={handleAddTag} onDeleteTag={handleDeleteTag} />}
 
           {selectedClient && <ClientDetails client={clients.find(c => c.id === selectedClient.id) || selectedClient} tasks={tasks} onBack={() => setSelectedClient(null)} onEdit={() => setEditingClient({ client: selectedClient, mode: 'full' })} onDelete={() => {setClients(clients.filter(c => c.id !== selectedClient.id)); setSelectedClient(null);}} onAddTask={(t) => setTasks([t, ...tasks])} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddRecord={handleAddRecord} onEditRecord={handleEditRecord} onCompleteRecord={handleCompleteRecord} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} onUpdateBranch={handleUpdateClientBranch} activeTab={activeTab} setActiveTab={setActiveTab} categories={categories} />}
-          {editingClient && <ClientForm client={editingClient.client} onSave={(upd) => {setClients(clients.map(cl => cl.id === upd.id ? {...cl, ...upd, records: cl.records || upd.records || []} : cl)); setEditingClient(null); if(selectedClient?.id === upd.id) setSelectedClient({...selectedClient, ...upd});}} onCancel={() => setEditingClient(null)} title={'Редактирование'} />}
+          {editingClient && <ClientForm client={editingClient.client} onSave={(upd) => {setClients(clients.map(cl => cl.id === upd.id ? {...cl, ...upd, records: cl.records || upd.records || []} : cl)); setEditingClient(null); if(selectedClient?.id === upd.id) setSelectedClient({...selectedClient, ...upd});}} onCancel={() => setEditingClient(null)} title={'Редактирование'} currentBranch={currentBranch} />}
       </div>
-      <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <TabBar activeTab={activeTab} setActiveTab={setActiveTab} userRole={user?.role || 'owner'} />
       <style>{`
         * { -webkit-tap-highlight-color: transparent; }
         body { 
