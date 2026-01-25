@@ -1,12 +1,17 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { Pool } = require('pg');
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.NODE_ENV === 'production' ? 5000 : 3001;
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../dist')));
+}
 
 const pool = new Pool({
   host: process.env.POSTGRESQL_HOST,
@@ -139,9 +144,12 @@ app.get('/api/clients', async (req, res) => {
 app.post('/api/clients', async (req, res) => {
   try {
     const { name, phone, email, notes } = req.body;
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
     const result = await pool.query(
       `INSERT INTO ${SCHEMA}.clients (name, phone, email, notes) VALUES ($1, $2, $3, $4) RETURNING *`,
-      [name, phone, email, notes]
+      [name.trim(), phone || null, email || null, notes || null]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -153,11 +161,20 @@ app.post('/api/clients', async (req, res) => {
 app.put('/api/clients/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({ error: 'Invalid client ID' });
+    }
     const { name, phone, email, notes } = req.body;
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
     const result = await pool.query(
       `UPDATE ${SCHEMA}.clients SET name = $1, phone = $2, email = $3, notes = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *`,
-      [name, phone, email, notes, id]
+      [name.trim(), phone || null, email || null, notes || null, parseInt(id)]
     );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating client:', error);
@@ -411,10 +428,17 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  });
+}
+
 initDatabase()
   .then(() => {
-    app.listen(PORT, 'localhost', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+    const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+    app.listen(PORT, host, () => {
+      console.log(`Server running on http://${host}:${PORT}`);
       console.log(`Using PostgreSQL schema: ${SCHEMA}`);
     });
   })
