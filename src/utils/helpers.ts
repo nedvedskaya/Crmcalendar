@@ -105,3 +105,102 @@ export const copyToClipboard = async (text: string): Promise<void> => {
 export const generateId = (): number => {
   return Date.now() + Math.random();
 };
+
+/**
+ * Форматирование даты для input[type="date"]
+ * @param date - дата в любом формате
+ * @returns строка в формате YYYY-MM-DD
+ */
+export const formatDateForInput = (date: Date | string): string => {
+  return new Date(date).toISOString().split('T')[0];
+};
+
+/**
+ * Форматирование даты с учетом локали
+ * @param date - дата в любом формате
+ * @param locale - локаль (по умолчанию 'ru-RU')
+ * @returns отформатированная дата (например: "15.01.2025")
+ */
+export const formatDateLocale = (date: Date | string, locale = 'ru-RU'): string => {
+  return new Date(date).toLocaleDateString(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+};
+
+/**
+ * Форматирование даты и времени
+ * @param date - дата в любом формате
+ * @param locale - локаль (по умолчанию 'ru-RU')
+ * @returns отформатированная дата и время (например: "15.01.2025, 14:30")
+ */
+export const formatDateTime = (date: Date | string, locale = 'ru-RU'): string => {
+  return new Date(date).toLocaleString(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+/**
+ * Проверка, является ли дата сегодняшней
+ * @param date - дата для проверки
+ * @returns true если дата сегодня
+ */
+export const isToday = (date: Date | string): boolean => {
+  const today = new Date();
+  const checkDate = new Date(date);
+  return today.toDateString() === checkDate.toDateString();
+};
+
+/**
+ * Проверка, просрочена ли дата
+ * @param date - дата для проверки
+ * @returns true если дата в прошлом (но не сегодня)
+ */
+export const isOverdue = (date: Date | string): boolean => {
+  return new Date(date) < new Date() && !isToday(date);
+};
+
+/**
+ * Получить начало дня (00:00:00.000)
+ * @param date - дата (по умолчанию текущая)
+ * @returns дата с временем 00:00:00.000
+ */
+export const getStartOfDay = (date: Date | string = new Date()): Date => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+/**
+ * Получить конец дня (23:59:59.999)
+ * @param date - дата (по умолчанию текущая)
+ * @returns дата с временем 23:59:59.999
+ */
+export const getEndOfDay = (date: Date | string = new Date()): Date => {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+};
+
+/**
+ * Проверка, находится ли дата в заданном диапазоне
+ * @param date - дата для проверки
+ * @param startDate - начало диапазона
+ * @param endDate - конец диапазона
+ * @returns true если дата в диапазоне
+ */
+export const isDateInRange = (
+  date: Date | string, 
+  startDate: Date | string, 
+  endDate: Date | string
+): boolean => {
+  const checkDate = new Date(date).getTime();
+  const start = new Date(startDate).getTime();
+  const end = new Date(endDate).getTime();
+  return checkDate >= start && checkDate <= end;
+};

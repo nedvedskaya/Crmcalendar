@@ -626,7 +626,15 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
             </div>
         </Modal>
         
-        <Header title="Финансы" actionIcon={activeSection === 'operations' ? Plus : null} onAction={activeSection === 'operations' ? () => setIsAdding(true) : null} variant="simple" />
+        <Header 
+            title="Финансы" 
+            actionIcon={activeSection === 'operations' ? Plus : null} 
+            onAction={activeSection === 'operations' ? () => setIsAdding(true) : null} 
+            secondaryIcon={Download}
+            onSecondaryAction={exportToExcel}
+            showSecondaryAction={activeSection === 'operations' && transactions.length > 0}
+            variant="simple" 
+        />
         
         {/* Переключатель разделов: Операции / Аналитика */}
         <div className="px-4 pt-2 pb-2 bg-white border-b border-zinc-200 shrink-0">
@@ -643,12 +651,12 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
 
         {/* Контент: Операции */}
         {activeSection === 'operations' && (
-            <div className="flex-1 overflow-y-auto pb-44 bg-zinc-50">
+            <div className="flex-1 overflow-y-auto pb-32 bg-zinc-50">
               {/* Баланс - градиент как в аналитике */}
-              <div className="px-6 pt-6 pb-4">
-                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-3xl p-6 text-center shadow-xl">
+              <div className="px-6 pt-4 pb-3">
+                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-3xl p-5 text-center shadow-xl">
                   <div className="text-sm font-medium text-white mb-2 uppercase tracking-wide">Баланс</div>
-                  <div className="text-5xl font-bold text-white mb-6 tracking-tight">{formatMoney(balance)} ₽</div>
+                  <div className="text-4xl font-bold text-white mb-4 tracking-tight">{formatMoney(balance)} ₽</div>
                   <div className="flex gap-4 justify-center">
                       <div>
                           <div className="text-xs text-white/80 mb-1">Доход</div>
@@ -663,21 +671,6 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
                 </div>
               </div>
 
-              {/* Кнопка экспорта */}
-              {transactions.length > 0 && (
-                <div className="px-6 pb-4">
-                  <button
-                    onClick={exportToExcel}
-                    className="w-full flex items-center justify-center gap-2 bg-white border-2 border-zinc-200 rounded-2xl py-3 px-4 hover:border-orange-500 hover:bg-orange-50 transition-all group"
-                  >
-                    <Download size={18} className="text-zinc-600 group-hover:text-orange-500 transition-colors" />
-                    <span className="text-sm font-bold text-zinc-900 group-hover:text-orange-500 transition-colors">
-                      Экспорт в Excel
-                    </span>
-                  </button>
-                </div>
-              )}
-              
               {/* Операции по датам */}
               {Object.keys(transactionsByDate).length > 0 ? (
                   <div className="px-4 pb-4">
@@ -687,7 +680,7 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
                           return (
                               <div key={dateKey}>
                                   {/* Дата - тонкий элегантный разделитель */}
-                                  <div className="sticky top-0 bg-zinc-50 z-10 py-3">
+                                  <div className="sticky top-0 bg-zinc-50 z-10 py-2">
                                       <div className="flex items-center gap-3">
                                           <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{formatDateShort(dateKey)}</div>
                                           <div className="flex-1 h-px bg-zinc-200"></div>

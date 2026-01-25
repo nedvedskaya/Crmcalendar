@@ -11,3 +11,8 @@ export { ActionButton } from './ActionButton';
 export { TabButton } from './TabButton';
 export { ContactButtons } from './ContactButtons';
 export { BranchSelector } from './BranchSelector';
+
+// DRY Refactoring - переиспользуемые компоненты
+export { ActionButtons } from './ActionButtons';
+export { EmptyState } from './EmptyState';
+export { PaymentStatusSelector } from './PaymentStatusSelector';

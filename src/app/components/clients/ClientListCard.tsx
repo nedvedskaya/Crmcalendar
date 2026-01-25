@@ -1,5 +1,5 @@
-import { Car, Edit3, Trash2 } from 'lucide-react';
-import { Badge } from '@/app/components/ui';
+import { Car } from 'lucide-react';
+import { Badge, ActionButtons } from '@/app/components/ui';
 
 interface ClientListCardProps {
   client: any;
@@ -20,7 +20,7 @@ export const ClientListCard = ({
   return (
     <div 
       onClick={onOpen}
-      className="bg-white border border-zinc-200 rounded-2xl p-4 cursor-pointer hover:border-orange-300 hover:shadow-lg transition-all active:scale-[0.98] relative overflow-hidden"
+      className="bg-white border border-zinc-200 rounded-2xl p-3 cursor-pointer hover:border-orange-300 hover:shadow-lg transition-all active:scale-[0.98] relative overflow-hidden"
     >
       {/* Оранжевая полоска если есть активная бронь */}
       {hasActiveBooking && (
@@ -29,7 +29,7 @@ export const ClientListCard = ({
       
       <div className="flex items-start gap-3">
         {/* Аватар */}
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white text-lg font-black shrink-0 shadow-md">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white text-base font-black shrink-0 shadow-md">
           {String(client.name || '').charAt(0).toUpperCase()}
         </div>
         
@@ -39,23 +39,10 @@ export const ClientListCard = ({
             <h3 className="font-bold text-base text-zinc-900 truncate">
               {String(client.name || '')}
             </h3>
-            <div className="flex gap-1 ml-2 shrink-0">
-              <button 
-                onClick={(e) => { e.stopPropagation(); onEdit(); }}
-                className="p-1.5 text-zinc-400 hover:text-orange-600 transition-colors"
-              >
-                <Edit3 size={16} />
-              </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                className="p-1.5 text-zinc-400 hover:text-red-600 transition-colors"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
+            <ActionButtons onEdit={onEdit} onDelete={onDelete} />
           </div>
           
-          <div className="flex items-center gap-2 text-xs text-zinc-500 mb-2">
+          <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1.5">
             <Car size={12} />
             <span className="truncate">
               {String(client.carBrand || '')} {String(client.carModel || '')}

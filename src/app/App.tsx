@@ -6,7 +6,7 @@ import {
   Trash2, Edit3, X, Circle, AlertOctagon, CalendarDays, Copy, Wallet,
   Save, Wrench, Maximize2, History, CalendarX, Check, Lock, Tag, AlertCircle, 
   UserPlus, Coins, CheckSquare2, User, ArrowDownLeft, TrendingUp,
-  TrendingDown, DollarSign
+  TrendingDown, DollarSign, RotateCcw
 } from 'lucide-react';
 import { FinanceView } from '@/app/components/FinanceView';
 import { Button } from '@/app/components/ui/Button';
@@ -535,7 +535,7 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
 
 // --- 5. MAIN VIEWS ---
 
-const ClientDetails = ({ client, onBack, tasks, onEdit, onAddTask, onDelete, onToggleTask, onAddRecord, onEditRecord, onCompleteRecord, onDeleteTask, onEditTask, onUpdateBranch, activeTab, setActiveTab, categories }) => {
+const ClientDetails = ({ client, onBack, tasks, onEdit, onAddTask, onDelete, onToggleTask, onAddRecord, onEditRecord, onCompleteRecord, onRestoreRecord, onDeleteTask, onEditTask, onUpdateBranch, activeTab, setActiveTab, categories }) => {
     const clientTasks = tasks.filter(t => t.clientId === client.id);
     const activeTasks = clientTasks.filter(t => !t.completed);
     const completedTasks = clientTasks.filter(t => t.completed);
@@ -849,18 +849,38 @@ const ClientDetails = ({ client, onBack, tasks, onEdit, onAddTask, onDelete, onT
                                 <ChevronDown size={12} className={`transition-transform ${showRecordsArchive ? 'rotate-180' : ''}`} />
                             </button>
                             {showRecordsArchive && (
-                                <div className="space-y-3 opacity-70 animate-in fade-in">
+                                <div className="space-y-3 animate-in fade-in">
                                     {archivedRecords.map((record) => (
-                                        <div key={record.id} className="rounded-xl p-4 bg-zinc-100 border border-zinc-200">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <CheckCircle2 size={14} className="text-green-600" />
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Выполнено</span>
-                                                {record.isPaid && <span className="ml-auto text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold">Оплачено</span>}
-                                            </div>
-                                            <p className="text-base font-bold text-zinc-700">{String(record.service || '')}</p>
-                                            <div className="flex justify-between items-center mt-2">
-                                                <p className="text-sm font-medium text-zinc-500">{formatDate(record.date)} • {String(record.time || '')}</p>
-                                                <p className="text-lg font-black text-zinc-800">{formatMoney(record.amount)} ₽</p>
+                                        <div key={record.id} className="rounded-xl bg-white border border-zinc-200 shadow-sm overflow-hidden">
+                                            {/* Серая полоска для архивных */}
+                                            <div className="h-1 bg-gradient-to-r from-zinc-300 to-zinc-400"></div>
+                                            
+                                            <div className="p-4 space-y-2 relative">
+                                                <div className="flex items-center gap-2 justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <CheckCircle2 size={14} className="text-green-600" />
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Выполнено</span>
+                                                        {record.isPaid && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold">Оплачено</span>}
+                                                    </div>
+                                                    
+                                                    {/* Компактная иконка восстановления */}
+                                                    <button 
+                                                        onClick={() => {
+                                                            if (window.confirm('Восстановить бронь? Связанная транзакция будет удалена из финансов.')) {
+                                                                onRestoreRecord(client.id, record.id);
+                                                            }
+                                                        }} 
+                                                        className="p-1.5 rounded-lg bg-gradient-to-b from-orange-500 to-orange-600 text-white shadow-sm hover:shadow-md active:scale-90 transition-all duration-200"
+                                                        title="Восстановить бронь"
+                                                    >
+                                                        <RotateCcw size={14} />
+                                                    </button>
+                                                </div>
+                                                <p className="text-base font-bold text-zinc-700">{String(record.service || '')}</p>
+                                                <div className="flex justify-between items-center">
+                                                    <p className="text-sm font-medium text-zinc-500">{formatDate(record.date)} • {String(record.time || '')}</p>
+                                                    <p className="text-lg font-black text-zinc-800">{formatMoney(record.amount)} ₽</p>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -1029,11 +1049,11 @@ const TasksView = ({ tasks, onToggleTask, onAddTask, onDeleteTask, onEditTask, c
             <Header title="Задачи" actionIcon={Plus} onAction={() => setIsAdding(true)} />
             
             {/* Переключатель вкладок */}
-            <div className="sticky top-0 z-20 bg-white px-6 pt-3 pb-2 border-b border-zinc-200">
+            <div className="sticky top-0 z-20 bg-white px-6 pt-2 pb-2 border-b border-zinc-200">
                 <div className="flex gap-2">
                     <button 
                         onClick={() => setTaskFilter('today')}
-                        className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
+                        className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-sm transition-all ${
                             taskFilter === 'today' 
                                 ? 'bg-black text-white shadow-lg' 
                                 : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
@@ -1043,7 +1063,7 @@ const TasksView = ({ tasks, onToggleTask, onAddTask, onDeleteTask, onEditTask, c
                     </button>
                     <button 
                         onClick={() => setTaskFilter('all')}
-                        className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all ${
+                        className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-sm transition-all ${
                             taskFilter === 'all' 
                                 ? 'bg-black text-white shadow-lg' 
                                 : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
@@ -1140,13 +1160,13 @@ const TasksView = ({ tasks, onToggleTask, onAddTask, onDeleteTask, onEditTask, c
                 </div>
             )}
             
-            <div className="flex-1 overflow-y-auto px-6 mt-4 space-y-3 pt-4 pb-44 overscroll-contain">
+            <div className="flex-1 overflow-y-auto px-6 mt-2 space-y-2.5 pt-3 pb-32 overscroll-contain">
                 {/* Активные задачи */}
                 {taskFilter === 'all' ? (
                     <>
                         {/* Задачи на сегодня и просроченные */}
                         {todayTasks.length > 0 && (
-                            <div className="space-y-3">
+                            <div className="space-y-2.5">
                                 <div className="flex items-center gap-2 text-xs font-black text-zinc-400 uppercase tracking-widest">
                                     <CalendarDays size={14} />
                                     Сегодня и просроченные
@@ -1160,8 +1180,8 @@ const TasksView = ({ tasks, onToggleTask, onAddTask, onDeleteTask, onEditTask, c
                         
                         {/* Будущие задачи */}
                         {futureTasks.length > 0 && (
-                            <div className="space-y-3 mt-6">
-                                <div className="flex items-center gap-2 text-xs font-black text-zinc-400 uppercase tracking-widest pt-4 border-t border-zinc-200">
+                            <div className="space-y-2.5 mt-4">
+                                <div className="flex items-center gap-2 text-xs font-black text-zinc-400 uppercase tracking-widest pt-3 border-t border-zinc-200">
                                     <Clock size={14} />
                                     Запланированные
                                 </div>
@@ -1182,7 +1202,7 @@ const TasksView = ({ tasks, onToggleTask, onAddTask, onDeleteTask, onEditTask, c
                         )}
                     </>
                 ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                         {displayTasks.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-64 text-center">
                                 <CheckSquare size={48} className="text-zinc-300 mb-4" />
@@ -1200,17 +1220,17 @@ const TasksView = ({ tasks, onToggleTask, onAddTask, onDeleteTask, onEditTask, c
 
                 {/* Архив */}
                 {archivedTasks.length > 0 && (
-                    <div className="mt-8 pt-6 border-t border-zinc-200">
+                    <div className="mt-6 pt-4 border-t border-zinc-200">
                         <button 
                             onClick={() => setShowArchive(!showArchive)} 
-                            className="flex items-center gap-2 text-xs font-black text-zinc-400 uppercase tracking-widest mb-4 hover:text-zinc-600 transition-all"
+                            className="flex items-center gap-2 text-xs font-black text-zinc-400 uppercase tracking-widest mb-3 hover:text-zinc-600 transition-all"
                         >
                             <History size={14} />
                             Архив ({archivedTasks.length})
                             <ChevronDown size={14} className={`transition-transform ${showArchive ? 'rotate-180' : ''}`} />
                         </button>
                         {showArchive && (
-                            <div className="space-y-3 opacity-60 animate-in fade-in">
+                            <div className="space-y-2.5 opacity-60 animate-in fade-in">
                                 {archivedTasks.map(t => {
                                     const client = t.clientId ? clients.find(c => c.id === t.clientId) : null;
                                     return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} />;
@@ -1276,15 +1296,15 @@ const CalendarView = ({ events, clients, onAddRecord, onOpenClient, categories, 
                     </div>
                  </div>
              )}
-             <div className="px-4 py-3 flex items-center justify-between bg-white/50 backdrop-blur-sm shrink-0">
+             <div className="px-4 py-2 flex items-center justify-between bg-white/50 backdrop-blur-sm shrink-0">
                 <div className="flex items-center gap-4">
                     <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="p-2 text-zinc-400 transition-colors hover:text-black"><ChevronLeft size={24} /></button>
-                    <span className="text-xl font-black">{names[month]}</span>
+                    <span className="text-3xl font-black">{names[month]}</span>
                     <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-2 text-zinc-400 transition-colors hover:text-black"><ChevronRight size={24} /></button>
                 </div>
                 <div className="text-sm font-bold text-zinc-400 pr-2">{year}</div>
             </div>
-             <div className="flex-1 overflow-y-auto bg-white p-2 overscroll-contain pb-32">
+             <div className="flex-1 overflow-y-auto bg-white p-2 overscroll-contain pb-24">
                 <div className="grid grid-cols-7 border-b border-zinc-100 pb-2 mb-2 text-center text-[10px] font-black text-zinc-400 uppercase">{week.map(d => <div key={d}>{d}</div>)}</div>
                 <CalendarGrid
                     year={year}
@@ -1463,6 +1483,9 @@ const App = () => {
   const [selectedClient, setSelectedClient] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
   
+  // Фильтр клиентов по периоду
+  const [clientsDateFilter, setClientsDateFilter] = useState('all');
+  
   // Загрузка категорий из localStorage
   const [categories, setCategories] = useState(() => {
     return safeLocalStorage.getItem('financeCategories', []);
@@ -1472,6 +1495,42 @@ const App = () => {
   const [tags, setTags] = useState(() => {
     return safeLocalStorage.getItem('financeTags', []);
   });
+
+  // Установка мета-тегов для iOS и мобильных устройств
+  useEffect(() => {
+    // Viewport для корректной адаптации на iPhone
+    let viewportMeta = document.querySelector('meta[name="viewport"]');
+    if (!viewportMeta) {
+      viewportMeta = document.createElement('meta');
+      viewportMeta.setAttribute('name', 'viewport');
+      document.head.appendChild(viewportMeta);
+    }
+    viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+
+    // iOS Web App мета-теги
+    const metaTags = [
+      { name: 'apple-mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+      { name: 'apple-mobile-web-app-title', content: 'CRM Автосервис' },
+      { name: 'mobile-web-app-capable', content: 'yes' },
+      { name: 'theme-color', content: '#f97316' }
+    ];
+
+    metaTags.forEach(({ name, content }) => {
+      let meta = document.querySelector(`meta[name="${name}"]`);
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('name', name);
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute('content', content);
+    });
+
+    // Добавляем класс для iOS
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+      document.documentElement.classList.add('ios-device');
+    }
+  }, []);
 
   // Одноразовая очистка старых данных
   useEffect(() => {
@@ -1530,7 +1589,39 @@ const App = () => {
     setUser(null);
   };
 
-  // Если не авторизован - показываем экран входа
+  // Если не а��торизован - показываем экран входа
+  // Фильтрация клиентов по выбранному периоду (применяется глобально)
+  const filteredClients = useMemo(() => {
+    if (clientsDateFilter === 'all') return clients;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return clients.filter(client => {
+      if (!client.createdDate) return false;
+      
+      const [year, month, day] = client.createdDate.split('-').map(Number);
+      const clientDate = new Date(year, month - 1, day);
+      clientDate.setHours(0, 0, 0, 0);
+      
+      const diffTime = today.getTime() - clientDate.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      switch (clientsDateFilter) {
+        case 'today':
+          return diffDays === 0;
+        case 'week':
+          return diffDays <= 7;
+        case 'month':
+          return diffDays <= 30;
+        case 'year':
+          return diffDays <= 365;
+        default:
+          return true;
+      }
+    });
+  }, [clients, clientsDateFilter]);
+
   if (!isAuth) {
     return <LoginScreen onLogin={handleLogin} />;
   }
@@ -1634,6 +1725,41 @@ const App = () => {
       } : cl));
   };
   
+  const handleRestoreRecord = (clientId, recordId) => {
+      const c = clients.find(cl => cl.id === clientId);
+      if (!c) return;
+      const record = (c.records || []).find(r => r.id === recordId);
+      if (!record) return;
+      
+      // Удаляем связанную транзакцию из финансов
+      // Ищем транзакцию по характеристикам: сумма, название услуги, имя клиента
+      if (record.amount) {
+          const transactionTitle = `Оплата: ${record.service || 'Услуга'}`;
+          const transactionSub = `${c.name} • ${c.carBrand} ${c.carModel}`;
+          
+          setTransactions(prev => prev.filter(t => {
+              // Проверяем совпадение по ключевым параметрам
+              const isSameAmount = t.amount === Number(record.amount);
+              const isSameTitle = t.title === transactionTitle;
+              const isSameSub = t.sub?.includes(c.name);
+              const isIncome = t.type === 'income';
+              
+              // Удаляем транзакцию если совпадают все параметры
+              return !(isSameAmount && isSameTitle && isSameSub && isIncome);
+          }));
+      }
+      
+      // Восстанавливаем бронь - убираем флаги выполнения
+      setClients(prev => prev.map(cl => cl.id === clientId ? { 
+          ...cl, 
+          records: (cl.records || []).map(r => r.id === recordId ? { 
+              ...r, 
+              isPaid: false, 
+              isCompleted: false 
+          } : r) 
+      } : cl));
+  };
+  
   const handleUpdateClientBranch = (clientId, newBranch) => {
       // Обновляем филиал клиента
       setClients(prev => prev.map(cl => 
@@ -1717,12 +1843,12 @@ const App = () => {
       <UserMenu onLogout={handleLogout} />
       
       <div className="flex-1 relative overflow-hidden bg-zinc-50">
-          {activeTab === 'clients' && <ClientsView allClients={clients} onAddClient={handleAddClient} onDeleteClient={(id) => setClients(clients.filter(cl => cl.id !== id))} onOpenClient={setSelectedClient} onEditClient={setEditingClient} ClientForm={ClientForm} currentBranch={currentBranch} />}
-          {activeTab === 'tasks' && <TasksView tasks={tasks} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddTask={(t) => setTasks([t, ...tasks])} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} clients={clients} currentBranch={currentBranch} />}
-          {activeTab === 'calendar' && <CalendarView events={filteredEvents} clients={clients} onAddRecord={handleAddRecord} onOpenClient={setSelectedClient} categories={categories} currentBranch={currentBranch} />}
+          {activeTab === 'clients' && <ClientsView allClients={filteredClients} onAddClient={handleAddClient} onDeleteClient={(id) => setClients(clients.filter(cl => cl.id !== id))} onOpenClient={setSelectedClient} onEditClient={setEditingClient} ClientForm={ClientForm} currentBranch={currentBranch} dateFilter={clientsDateFilter} onDateFilterChange={setClientsDateFilter} />}
+          {activeTab === 'tasks' && <TasksView tasks={tasks} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddTask={(t) => setTasks([t, ...tasks])} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} clients={filteredClients} currentBranch={currentBranch} />}
+          {activeTab === 'calendar' && <CalendarView events={filteredEvents} clients={filteredClients} onAddRecord={handleAddRecord} onOpenClient={setSelectedClient} categories={categories} currentBranch={currentBranch} />}
           {activeTab === 'finance' && <FinanceView transactions={transactions} onAddTransaction={handleAddManualTransaction} onEditTransaction={handleEditTransaction} onDeleteTransaction={handleDeleteTransaction} categories={categories} onAddCategory={handleAddCategory} onEditCategory={handleEditCategory} onDeleteCategory={handleDeleteCategory} tags={tags} onAddTag={handleAddTag} onDeleteTag={handleDeleteTag} />}
 
-          {selectedClient && <ClientDetails client={clients.find(c => c.id === selectedClient.id) || selectedClient} tasks={tasks} onBack={() => setSelectedClient(null)} onEdit={() => setEditingClient({ client: selectedClient, mode: 'full' })} onDelete={() => {setClients(clients.filter(c => c.id !== selectedClient.id)); setSelectedClient(null);}} onAddTask={(t) => setTasks([t, ...tasks])} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddRecord={handleAddRecord} onEditRecord={handleEditRecord} onCompleteRecord={handleCompleteRecord} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} onUpdateBranch={handleUpdateClientBranch} activeTab={activeTab} setActiveTab={setActiveTab} categories={categories} />}
+          {selectedClient && <ClientDetails client={filteredClients.find(c => c.id === selectedClient.id) || selectedClient} tasks={tasks} onBack={() => setSelectedClient(null)} onEdit={() => setEditingClient({ client: selectedClient, mode: 'full' })} onDelete={() => {setClients(clients.filter(c => c.id !== selectedClient.id)); setSelectedClient(null);}} onAddTask={(t) => setTasks([t, ...tasks])} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddRecord={handleAddRecord} onEditRecord={handleEditRecord} onCompleteRecord={handleCompleteRecord} onRestoreRecord={handleRestoreRecord} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} onUpdateBranch={handleUpdateClientBranch} activeTab={activeTab} setActiveTab={setActiveTab} categories={categories} />}
           {editingClient && <ClientForm client={editingClient.client} onSave={(upd) => {setClients(clients.map(cl => cl.id === upd.id ? {...cl, ...upd, records: cl.records || upd.records || []} : cl)); setEditingClient(null); if(selectedClient?.id === upd.id) setSelectedClient({...selectedClient, ...upd});}} onCancel={() => setEditingClient(null)} title={'Редактирование'} currentBranch={currentBranch} />}
       </div>
       <TabBar activeTab={activeTab} setActiveTab={setActiveTab} userRole={user?.role || 'owner'} />

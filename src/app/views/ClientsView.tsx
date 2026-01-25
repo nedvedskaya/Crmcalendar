@@ -1,9 +1,8 @@
-import { useState } from 'react';
-import { Plus, Search, ChevronDown, ChevronRight, Download } from 'lucide-react';
-import { Header } from '@/app/components/ui';
+import React, { useState } from 'react';
+import { Search, Download, Plus, ChevronDown, Filter } from 'lucide-react';
 import { ClientListCard } from '@/app/components/clients';
-import { useSearch } from '@/app/hooks';
-import { getDateStr } from '@/utils/helpers';
+import { EmptyState } from '@/app/components/ui';
+import { useSearch, useDateFilter } from '@/app/hooks';
 import * as XLSX from 'xlsx';
 
 interface ClientsViewProps {
@@ -14,6 +13,8 @@ interface ClientsViewProps {
   onEditClient: (params: { client: any; mode: string }) => void;
   ClientForm: React.ComponentType<any>;
   currentBranch?: string;
+  dateFilter?: 'all' | 'today' | 'week' | 'month' | 'year';
+  onDateFilterChange?: (filter: 'all' | 'today' | 'week' | 'month' | 'year') => void;
 }
 
 export const ClientsView = ({ 
@@ -23,18 +24,18 @@ export const ClientsView = ({
   onOpenClient, 
   onEditClient,
   ClientForm,
-  currentBranch = 'MSK'
+  currentBranch = 'MSK',
+  dateFilter = 'all',
+  onDateFilterChange
 }: ClientsViewProps) => {
   const [isAdding, setIsAdding] = useState(false);
-  const [showTodayClients, setShowTodayClients] = useState(false);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
   
+  // allClients уже отфильтрован в App.tsx, просто используем его
   const { search, setSearch, filteredItems } = useSearch({
     items: allClients,
     searchFields: ['name', 'carBrand', 'city', 'phone']
   });
-  
-  const today = getDateStr(0);
-  const todayClients = allClients.filter(c => c.createdDate === today);
 
   // Функция экспорта базы клиентов в Excel
   const exportToExcel = () => {
@@ -95,9 +96,9 @@ export const ClientsView = ({
       
       <div className="sticky top-0 z-30 bg-white shadow-sm shrink-0">
         {/* Кастомный заголовок с кнопкой экспорта */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+        <div className="flex items-center justify-between px-6 py-3 border-b border-zinc-200">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-black">Клиенты</h1>
+            <h1 className="text-3xl font-black">Клиенты</h1>
             <button
               onClick={exportToExcel}
               className="w-8 h-8 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center transition-all active:scale-95"
@@ -105,6 +106,60 @@ export const ClientsView = ({
             >
               <Download size={16} className="text-orange-600" />
             </button>
+            
+            {/* Фильтр по периоду */}
+            <div className="relative">
+              <button
+                onClick={() => setShowFilterMenu(!showFilterMenu)}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                  dateFilter !== 'all' 
+                    ? 'bg-orange-500 text-white' 
+                    : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-600'
+                }`}
+                title="Фильтр по дате добавления"
+              >
+                <Filter size={16} />
+              </button>
+              
+              {/* Раскрывающееся меню фильтра */}
+              {showFilterMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowFilterMenu(false)}
+                  />
+                  <div className="absolute left-0 top-full mt-2 bg-white rounded-xl shadow-2xl border border-zinc-200 py-2 z-50 min-w-[160px] animate-in fade-in slide-in-from-top-2">
+                    {[
+                      { value: 'all', label: 'Все время' },
+                      { value: 'today', label: 'Сегодня' },
+                      { value: 'week', label: 'Неделя' },
+                      { value: 'month', label: 'Месяц' },
+                      { value: 'year', label: 'Год' }
+                    ].map(option => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          onDateFilterChange?.(option.value as any);
+                          setShowFilterMenu(false);
+                        }}
+                        className={`w-full px-4 py-2.5 text-left text-sm font-bold transition-all ${
+                          dateFilter === option.value
+                            ? 'bg-orange-50 text-orange-600'
+                            : 'text-zinc-700 hover:bg-zinc-50'
+                        }`}
+                      >
+                        {option.label}
+                        {dateFilter === option.value && option.value !== 'all' && (
+                          <span className="ml-2 text-xs font-bold">
+                            ({allClients.length})
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           <button
             onClick={() => setIsAdding(true)}
@@ -126,54 +181,50 @@ export const ClientsView = ({
           />
         </div>
         
-        {/* Клиенты за сегодня */}
-        {todayClients.length > 0 && (
+        {/* Индикатор активного фильтра */}
+        {dateFilter !== 'all' && (
           <div className="px-6 pb-3">
-            <button 
-              onClick={() => setShowTodayClients(!showTodayClients)}
-              className="w-full bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-xl py-2 px-3 flex items-center justify-between hover:shadow-sm transition-all"
-            >
+            <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs">
-                  {todayClients.length}
-                </div>
-                <p className="text-[11px] font-bold text-orange-900 uppercase tracking-wide">Новых клиентов сегодня</p>
+                <Filter size={14} className="text-orange-600" />
+                <span className="text-xs font-bold text-orange-900">
+                  {dateFilter === 'today' && 'Сегодня'}
+                  {dateFilter === 'week' && 'За неделю'}
+                  {dateFilter === 'month' && 'За месяц'}
+                  {dateFilter === 'year' && 'За год'}
+                  {' • '}{allClients.length} {allClients.length === 1 ? 'клиент' : allClients.length < 5 ? 'клиента' : 'клиентов'}
+                </span>
               </div>
-              <ChevronDown size={16} className={`text-orange-600 transition-transform ${showTodayClients ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {showTodayClients && (
-              <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-top-2 max-h-64 overflow-y-auto">
-                {todayClients.map(client => (
-                  <div 
-                    key={client.id}
-                    onClick={() => onOpenClient(client)}
-                    className="bg-white border border-orange-200 rounded-lg p-3 flex items-center justify-between cursor-pointer hover:bg-orange-50 transition-all active:scale-[0.98]"
-                  >
-                    <div className="flex-1">
-                      <p className="font-bold text-sm text-black">{String(client.name || '')}</p>
-                      <p className="text-xs text-zinc-500 font-medium">{String(client.carBrand || '')} {String(client.carModel || '')}</p>
-                    </div>
-                    <ChevronRight size={16} className="text-orange-500" />
-                  </div>
-                ))}
-              </div>
-            )}
+              <button
+                onClick={() => onDateFilterChange?.('all')}
+                className="text-orange-600 hover:text-orange-700 text-xs font-bold"
+              >
+                Сбросить
+              </button>
+            </div>
           </div>
         )}
       </div>
       
       {/* Список клиентов */}
-      <div className="flex-1 overflow-y-auto px-6 space-y-4 pt-4 pb-44 overscroll-contain">
-        {filteredItems.map(client => (
-          <ClientListCard 
-            key={client.id} 
-            client={client} 
-            onOpen={() => onOpenClient(client)} 
-            onEdit={() => onEditClient({ client, mode: 'base' })} 
-            onDelete={() => onDeleteClient(client.id)} 
+      <div className="flex-1 overflow-y-auto px-6 space-y-3 pt-3 pb-32 overscroll-contain">
+        {filteredItems.length === 0 ? (
+          <EmptyState
+            icon={Search}
+            title={search ? 'Клиенты не найдены' : 'Нет клиентов'}
+            description={search ? 'Попробуйте изменить параметры поиска' : 'Нажмите + чтобы добавить первого клиента'}
           />
-        ))}
+        ) : (
+          filteredItems.map(client => (
+            <ClientListCard 
+              key={client.id} 
+              client={client} 
+              onOpen={() => onOpenClient(client)} 
+              onEdit={() => onEditClient({ client, mode: 'base' })} 
+              onDelete={() => onDeleteClient(client.id)} 
+            />
+          ))
+        )}
       </div>
     </div>
   );

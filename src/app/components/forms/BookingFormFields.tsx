@@ -1,5 +1,6 @@
 import { Calendar, Clock, DollarSign } from 'lucide-react';
 import { FormField } from './FormField';
+import { PaymentStatusSelector } from '@/app/components/ui/PaymentStatusSelector';
 
 interface BookingFormFieldsProps {
   bookingData: {
@@ -90,46 +91,10 @@ export const BookingFormFields = ({
       </div>
 
       {/* Статус оплаты */}
-      <div>
-        <label className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-2 block">
-          Статус оплаты
-        </label>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => onChange({ target: { name: 'paymentStatus', value: 'none' } } as any)}
-            className={`flex-1 px-2 py-2 rounded-xl text-xs font-semibold transition-all ${
-              bookingData.paymentStatus === 'none' 
-                ? 'bg-gray-500 text-white shadow-lg shadow-gray-500/30' 
-                : 'bg-gray-100 text-gray-400'
-            }`}
-          >
-            Не оплачено
-          </button>
-          <button
-            type="button"
-            onClick={() => onChange({ target: { name: 'paymentStatus', value: 'advance' } } as any)}
-            className={`flex-1 px-2 py-2 rounded-xl text-xs font-semibold transition-all ${
-              bookingData.paymentStatus === 'advance' 
-                ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' 
-                : 'bg-gray-100 text-gray-400'
-            }`}
-          >
-            Аванс
-          </button>
-          <button
-            type="button"
-            onClick={() => onChange({ target: { name: 'paymentStatus', value: 'paid' } } as any)}
-            className={`flex-1 px-2 py-2 rounded-xl text-xs font-semibold transition-all ${
-              bookingData.paymentStatus === 'paid' 
-                ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' 
-                : 'bg-gray-100 text-gray-400'
-            }`}
-          >
-            Оплачено
-          </button>
-        </div>
-      </div>
+      <PaymentStatusSelector
+        value={bookingData.paymentStatus}
+        onChange={(value) => onChange({ target: { name: 'paymentStatus', value } } as any)}
+      />
     </div>
   );
 };
