@@ -1829,38 +1829,45 @@ const App = () => {
   const handleDeleteClient = async (id) => {
       try {
         await api.deleteClient(id);
+        setClients(clients.filter(cl => cl.id !== id));
+        setEvents(events.filter(e => e.clientId !== id));
+        setTasks(tasks.filter(t => t.clientId !== id));
       } catch (error) {
         console.error('Error deleting client:', error);
+        alert('Ошибка при удалении клиента');
       }
-      setClients(clients.filter(cl => cl.id !== id));
-      setEvents(events.filter(e => e.clientId !== id));
-      setTasks(tasks.filter(t => t.clientId !== id));
   };
 
   const handleDeleteTask = async (id) => {
       try {
         await api.deleteTask(id);
+        setTasks(tasks.filter(t => t.id !== id));
       } catch (error) {
         console.error('Error deleting task:', error);
+        alert('Ошибка при удалении задачи');
       }
-      setTasks(tasks.filter(t => t.id !== id));
   };
   
   const handleEditTask = async (updatedTask) => {
+      const previousTasks = [...tasks];
+      setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
       try {
         await api.updateTask(updatedTask.id, {
-          title: updatedTask.title || updatedTask.task,
+          title: updatedTask.title || updatedTask.task || '',
           description: updatedTask.description || '',
           status: updatedTask.completed ? 'completed' : 'pending',
           priority: updatedTask.urgency || 'medium'
         });
       } catch (error) {
         console.error('Error updating task:', error);
+        setTasks(previousTasks);
+        alert('Ошибка при обновлении задачи');
       }
-      setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
   };
   
   const handleSaveClient = async (updatedClient) => {
+      const previousClients = [...clients];
+      setClients(clients.map(cl => cl.id === updatedClient.id ? {...cl, ...updatedClient, records: cl.records || updatedClient.records || []} : cl));
       try {
         await api.updateClient(updatedClient.id, {
           name: updatedClient.name,
@@ -1872,13 +1879,15 @@ const App = () => {
             vin: updatedClient.vin,
             licensePlate: updatedClient.licensePlate,
             branch: updatedClient.branch,
+            records: updatedClient.records || [],
             ...updatedClient
           })
         });
       } catch (error) {
         console.error('Error updating client:', error);
+        setClients(previousClients);
+        alert('Ошибка при сохранении клиента');
       }
-      setClients(clients.map(cl => cl.id === updatedClient.id ? {...cl, ...updatedClient, records: cl.records || updatedClient.records || []} : cl));
   };
   
   const handleAddCategory = (category) => {
