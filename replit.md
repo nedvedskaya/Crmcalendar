@@ -58,23 +58,81 @@ API requests to `/api/*` are proxied to the backend.
 npm run build
 ```
 
+## Database Schema
+The project uses PostgreSQL with schema `ugt_tuners`. Tables:
+
+### Core CRM Tables:
+- `users` - System users (with role, branch, is_owner)
+- `clients` - Customer records (with branch_id, source)
+- `vehicles` - Client vehicles (brand, model, VIN, license plate)
+- `services` - Available services
+- `bookings` - Appointments (with vehicle_id, payment_status, amount)
+- `client_records` - Service history per client
+- `transactions` - Financial transactions
+- `tasks` - Task management
+
+### Organization Tables:
+- `branches` - Company branches/locations
+- `categories` - Income/expense categories
+- `tags` - Filtering tags
+- `entity_tags` - Tag associations
+
+### Subscription/Payment Tables:
+- `subscriptions` - Subscription plans (price, limits, features)
+- `user_subscriptions` - User subscription status
+- `payments` - Payment history
+
+### Utility:
+- `app_data` - Key-value settings storage
+
 ## API Endpoints
 All endpoints are prefixed with `/api`:
+
+### Clients & Vehicles:
 - `GET/POST /clients` - List/create clients
 - `PUT/DELETE /clients/:id` - Update/delete client
+- `GET/POST /vehicles` - List/create vehicles
+- `PUT/DELETE /vehicles/:id` - Update/delete vehicle
+- `GET/POST /client-records` - List/create client records
+- `PUT/DELETE /client-records/:id` - Update/delete record
+
+### Tasks & Bookings:
 - `GET/POST /tasks` - List/create tasks
 - `PUT/DELETE /tasks/:id` - Update/delete task
-- `GET/POST /transactions` - List/create transactions
-- `DELETE /transactions/:id` - Delete transaction
 - `GET/POST /bookings` - List/create bookings
 - `PUT/DELETE /bookings/:id` - Update/delete booking
+
+### Services & Finance:
 - `GET/POST /services` - List/create services
 - `PUT/DELETE /services/:id` - Update/delete service
-- `GET/POST /data/:key` - Generic key-value storage
+- `GET/POST /transactions` - List/create transactions
+- `DELETE /transactions/:id` - Delete transaction
+- `GET/POST /categories` - List/create categories
+- `PUT/DELETE /categories/:id` - Update/delete category
+- `GET/POST /tags` - List/create tags
+- `DELETE /tags/:id` - Delete tag
+- `GET/POST /entity-tags` - List/create tag associations
+- `DELETE /entity-tags/:id` - Delete tag association
+
+### Organization:
+- `GET/POST /branches` - List/create branches
+- `PUT/DELETE /branches/:id` - Update/delete branch
 - `GET /users` - List users
+
+### Subscriptions & Payments:
+- `GET/POST /subscriptions` - List/create subscription plans
+- `GET/POST /user-subscriptions` - List/create user subscriptions
+- `PUT /user-subscriptions/:id` - Update subscription status
+- `GET/POST /payments` - List/create payments
+- `PUT /payments/:id` - Update payment status
+
+### Utility:
+- `GET/POST /data/:key` - Generic key-value storage
 - `GET /health` - Health check
 
 ## Recent Changes
+- 2026-01-25: Extended database schema with subscription/payment tables, vehicles, client records, categories, tags, branches
 - 2026-01-25: Integrated frontend with PostgreSQL API for persistent data storage
 - 2026-01-25: Added PostgreSQL backend with schema `ugt_tuners` for external database
+- 2026-01-25: Initial Replit setup - configured Vite for Replit environment
 - 2026-01-25: Initial Replit setup - configured Vite for Replit environment

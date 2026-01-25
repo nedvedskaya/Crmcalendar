@@ -168,4 +168,244 @@ export const api = {
     const response = await fetch(`${API_BASE}/users`);
     return handleResponse<any[]>(response);
   },
+
+  // Branches
+  async getBranches() {
+    const response = await fetch(`${API_BASE}/branches`);
+    return handleResponse<any[]>(response);
+  },
+
+  async createBranch(branch: any) {
+    const response = await fetch(`${API_BASE}/branches`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(branch),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async updateBranch(id: number, branch: any) {
+    const response = await fetch(`${API_BASE}/branches/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(branch),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async deleteBranch(id: number) {
+    const response = await fetch(`${API_BASE}/branches/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse<any>(response);
+  },
+
+  // Vehicles
+  async getVehicles(clientId?: number) {
+    const url = clientId ? `${API_BASE}/vehicles?client_id=${clientId}` : `${API_BASE}/vehicles`;
+    const response = await fetch(url);
+    return handleResponse<any[]>(response);
+  },
+
+  async createVehicle(vehicle: any) {
+    const response = await fetch(`${API_BASE}/vehicles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(vehicle),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async updateVehicle(id: number, vehicle: any) {
+    const response = await fetch(`${API_BASE}/vehicles/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(vehicle),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async deleteVehicle(id: number) {
+    const response = await fetch(`${API_BASE}/vehicles/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse<any>(response);
+  },
+
+  // Categories
+  async getCategories() {
+    const response = await fetch(`${API_BASE}/categories`);
+    return handleResponse<any[]>(response);
+  },
+
+  async createCategory(category: any) {
+    const response = await fetch(`${API_BASE}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(category),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async updateCategory(id: number, category: any) {
+    const response = await fetch(`${API_BASE}/categories/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(category),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async deleteCategory(id: number) {
+    const response = await fetch(`${API_BASE}/categories/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse<any>(response);
+  },
+
+  // Tags
+  async getTags() {
+    const response = await fetch(`${API_BASE}/tags`);
+    return handleResponse<any[]>(response);
+  },
+
+  async createTag(tag: any) {
+    const response = await fetch(`${API_BASE}/tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tag),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async deleteTag(id: number) {
+    const response = await fetch(`${API_BASE}/tags/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse<any>(response);
+  },
+
+  // Client Records
+  async getClientRecords(clientId?: number) {
+    const url = clientId ? `${API_BASE}/client-records?client_id=${clientId}` : `${API_BASE}/client-records`;
+    const response = await fetch(url);
+    return handleResponse<any[]>(response);
+  },
+
+  async createClientRecord(record: any) {
+    const response = await fetch(`${API_BASE}/client-records`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async updateClientRecord(id: number, record: any) {
+    const response = await fetch(`${API_BASE}/client-records/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async deleteClientRecord(id: number) {
+    const response = await fetch(`${API_BASE}/client-records/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse<any>(response);
+  },
+
+  // Subscriptions
+  async getSubscriptions() {
+    const response = await fetch(`${API_BASE}/subscriptions`);
+    return handleResponse<any[]>(response);
+  },
+
+  async createSubscription(subscription: any) {
+    const response = await fetch(`${API_BASE}/subscriptions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(subscription),
+    });
+    return handleResponse<any>(response);
+  },
+
+  // User Subscriptions
+  async getUserSubscriptions(userId?: number) {
+    const url = userId ? `${API_BASE}/user-subscriptions?user_id=${userId}` : `${API_BASE}/user-subscriptions`;
+    const response = await fetch(url);
+    return handleResponse<any[]>(response);
+  },
+
+  async createUserSubscription(userSubscription: any) {
+    const response = await fetch(`${API_BASE}/user-subscriptions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userSubscription),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async updateUserSubscription(id: number, userSubscription: any) {
+    const response = await fetch(`${API_BASE}/user-subscriptions/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userSubscription),
+    });
+    return handleResponse<any>(response);
+  },
+
+  // Payments
+  async getPayments(userId?: number) {
+    const url = userId ? `${API_BASE}/payments?user_id=${userId}` : `${API_BASE}/payments`;
+    const response = await fetch(url);
+    return handleResponse<any[]>(response);
+  },
+
+  async createPayment(payment: any) {
+    const response = await fetch(`${API_BASE}/payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payment),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async updatePayment(id: number, payment: any) {
+    const response = await fetch(`${API_BASE}/payments/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payment),
+    });
+    return handleResponse<any>(response);
+  },
+
+  // Entity Tags
+  async getEntityTags(entityType?: string, entityId?: number) {
+    let url = `${API_BASE}/entity-tags`;
+    const params = [];
+    if (entityType) params.push(`entity_type=${entityType}`);
+    if (entityId) params.push(`entity_id=${entityId}`);
+    if (params.length > 0) url += '?' + params.join('&');
+    const response = await fetch(url);
+    return handleResponse<any[]>(response);
+  },
+
+  async createEntityTag(entityTag: any) {
+    const response = await fetch(`${API_BASE}/entity-tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entityTag),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async deleteEntityTag(id: number) {
+    const response = await fetch(`${API_BASE}/entity-tags/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse<any>(response);
+  },
 };
