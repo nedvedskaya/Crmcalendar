@@ -58,6 +58,23 @@ API requests to `/api/*` are proxied to the backend.
 npm run build
 ```
 
+## API Endpoints
+All endpoints are prefixed with `/api`:
+- `GET/POST /clients` - List/create clients
+- `PUT/DELETE /clients/:id` - Update/delete client
+- `GET/POST /tasks` - List/create tasks
+- `PUT/DELETE /tasks/:id` - Update/delete task
+- `GET/POST /transactions` - List/create transactions
+- `DELETE /transactions/:id` - Delete transaction
+- `GET/POST /bookings` - List/create bookings
+- `PUT/DELETE /bookings/:id` - Update/delete booking
+- `GET/POST /services` - List/create services
+- `PUT/DELETE /services/:id` - Update/delete service
+- `GET/POST /data/:key` - Generic key-value storage
+- `GET /users` - List users
+- `GET /health` - Health check
+
 ## Recent Changes
+- 2026-01-25: Integrated frontend with PostgreSQL API for persistent data storage
 - 2026-01-25: Added PostgreSQL backend with schema `ugt_tuners` for external database
 - 2026-01-25: Initial Replit setup - configured Vite for Replit environment

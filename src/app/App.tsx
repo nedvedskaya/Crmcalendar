@@ -39,6 +39,7 @@ import {
 import { Header } from '@/app/components/ui/Header';
 import { isAuthenticated, saveUserAuth, getUserAuth } from '@/utils/auth';
 import { hasPermission, canAccessTab, getAvailableTabs, isAdmin } from '@/utils/permissions';
+import { api } from '@/utils/api';
 
 // --- HELPER COMPONENTS ---
 
@@ -1474,27 +1475,52 @@ const App = () => {
   // ВСЕ хуки должны быть вызваны ДО любого условного return
   const [activeTab, setActiveTab] = useState('clients');
   const [currentBranch, setCurrentBranch] = useState('msk'); 
-  const [clients, setClients] = useState(INITIAL_CLIENTS);
-  const [tasks, setTasks] = useState(INITIAL_TASKS);
-  const [transactions, setTransactions] = useState(() => {
-    return safeLocalStorage.getItem('financeTransactions', INITIAL_TRANSACTIONS);
-  });
+  const [clients, setClients] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [events, setEvents] = useState(INITIAL_EVENTS);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedClient, setSelectedClient] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
   
   // Фильтр клиентов по периоду
   const [clientsDateFilter, setClientsDateFilter] = useState('all');
   
-  // Загрузка категорий из localStorage
-  const [categories, setCategories] = useState(() => {
-    return safeLocalStorage.getItem('financeCategories', []);
-  });
-  
-  // Загрузка тегов из localStorage
-  const [tags, setTags] = useState(() => {
-    return safeLocalStorage.getItem('financeTags', []);
-  });
+  // Категории и теги (загружаются через API)
+  const [categories, setCategories] = useState<any[]>([]);
+  const [tags, setTags] = useState<any[]>([]);
+
+  // Загрузка данных из API при монтировании
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        const [clientsData, tasksData, transactionsData, categoriesData, tagsData] = await Promise.all([
+          api.getClients().catch(() => []),
+          api.getTasks().catch(() => []),
+          api.getTransactions().catch(() => []),
+          api.getData('categories').catch(() => []),
+          api.getData('tags').catch(() => []),
+        ]);
+        
+        setClients(clientsData || []);
+        setTasks(tasksData || []);
+        setTransactions(transactionsData || []);
+        setCategories(categoriesData || []);
+        setTags(tagsData || []);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    if (isAuth) {
+      loadData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [isAuth]);
 
   // Установка мета-тегов для iOS и мобильных устройств
   useEffect(() => {
@@ -1532,49 +1558,30 @@ const App = () => {
     }
   }, []);
 
-  // Одноразовая очистка старых данных
+  // Сохранение категорий через API (с debounce через ref)
+  const categoriesRef = useRef(categories);
   useEffect(() => {
-    const clearKey = 'financeDataCleared_v2';
-    if (!safeLocalStorage.hasItem(clearKey)) {
-      safeLocalStorage.removeItem('financeCategories');
-      safeLocalStorage.removeItem('financeTags');
-      safeLocalStorage.removeItem('financeTransactions');
-      safeLocalStorage.setItem(clearKey, true);
-      setCategories([]);
-      setTags([]);
-      setTransactions([]);
-    }
-  }, []);
-
-  // Сохранение категорий в localStorage
-  useEffect(() => {
-    safeLocalStorage.setItem('financeCategories', categories);
+    categoriesRef.current = categories;
   }, [categories]);
-
-  // Сохранение тегов в localStorage
+  
   useEffect(() => {
-    safeLocalStorage.setItem('financeTags', tags);
-  }, [tags]);
-
-  // Сохранение транзакций в localStorage
-  useEffect(() => {
-    safeLocalStorage.setItem('financeTransactions', transactions);
-  }, [transactions]);
-
-  // Миграция: добавление clientName к существующим задачам
-  useEffect(() => {
-    const migrationKey = 'taskClientNameMigration_v1';
-    if (!safeLocalStorage.hasItem(migrationKey)) {
-      setTasks(prev => prev.map(task => {
-        if (task.clientId && !task.clientName) {
-          const client = clients.find(c => c.id === task.clientId);
-          return { ...task, clientName: client?.name || '' };
-        }
-        return task;
-      }));
-      safeLocalStorage.setItem(migrationKey, true);
+    if (!isLoading && categories.length > 0) {
+      const timer = setTimeout(() => {
+        api.saveData('categories', categories).catch(console.error);
+      }, 1000);
+      return () => clearTimeout(timer);
     }
-  }, [clients]);
+  }, [categories, isLoading]);
+
+  // Сохранение тегов через API
+  useEffect(() => {
+    if (!isLoading && tags.length > 0) {
+      const timer = setTimeout(() => {
+        api.saveData('tags', tags).catch(console.error);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [tags, isLoading]);
 
   // Обработка входа
   const handleLogin = (userData: { name: string; role: string }) => {
@@ -1640,38 +1647,80 @@ const App = () => {
       }, ...prev]);
   };
 
-  const handleAddClient = (data, tks, recs) => {
-      const id = Date.now();
-      const entry = { ...data, id, branch: data.branch || null, createdDate: getDateStr(0), records: [] };
-      
-      // Добавляем брони из массива newRecords
-      if (recs?.length) {
-         const newRecords = recs.map((rec, idx) => {
-            const recordId = Date.now() + idx + 1;
-            // Автоматическое создание транзакций отключено - пользователь добавляет финансы вручную
-            // if (rec.paymentStatus === 'paid') {
-            //     addTransaction(rec.amount, rec.service, `${data.carBrand} ${data.carModel}`, 'income', data.name, rec.category);
-            // }
-            // Добавляем событие в календарь (используем филиал клиента)
-            setEvents(prev => [...prev, { 
-                id: Date.now() + idx + 100, 
-                clientId: id, 
-                recordId: recordId, 
-                branch: data.branch || null, 
-                date: rec.date, 
-                endDate: rec.endDate,
-                time: rec.time,
-                service: rec.service,
-                title: `${data.carBrand} (${rec.service})`, 
-                type: 'work' 
-            }]);
-            return { ...rec, id: recordId };
-         });
-         entry.records = newRecords;
+  const handleAddClient = async (data, tks, recs) => {
+      try {
+        const clientData = {
+          name: data.name,
+          phone: data.phone || '',
+          email: data.email || '',
+          notes: JSON.stringify({
+            carBrand: data.carBrand,
+            carModel: data.carModel,
+            vin: data.vin,
+            licensePlate: data.licensePlate,
+            branch: data.branch,
+            records: [],
+            ...data
+          })
+        };
+        
+        const savedClient = await api.createClient(clientData);
+        const id = savedClient.id;
+        const entry = { 
+          ...data, 
+          id, 
+          branch: data.branch || null, 
+          createdDate: getDateStr(0), 
+          records: [] 
+        };
+        
+        if (recs?.length) {
+           const newRecords = recs.map((rec, idx) => {
+              const recordId = Date.now() + idx + 1;
+              setEvents(prev => [...prev, { 
+                  id: Date.now() + idx + 100, 
+                  clientId: id, 
+                  recordId: recordId, 
+                  branch: data.branch || null, 
+                  date: rec.date, 
+                  endDate: rec.endDate,
+                  time: rec.time,
+                  service: rec.service,
+                  title: `${data.carBrand} (${rec.service})`, 
+                  type: 'work' 
+              }]);
+              return { ...rec, id: recordId };
+           });
+           entry.records = newRecords;
+        }
+        
+        setClients(prev => [entry, ...prev]);
+        if (tks?.length) {
+          const newTasks = tks.map(t => ({ 
+            ...t, 
+            id: Date.now()+Math.random(), 
+            clientId: id, 
+            clientName: data.name, 
+            branch: data.branch || null, 
+            completed: false 
+          }));
+          setTasks(prev => [...newTasks, ...prev]);
+          for (const task of newTasks) {
+            api.createTask({
+              title: task.title || task.task,
+              description: task.description || '',
+              status: 'pending',
+              priority: task.urgency || 'medium',
+              client_id: id
+            }).catch(console.error);
+          }
+        }
+      } catch (error) {
+        console.error('Error adding client:', error);
+        const id = Date.now();
+        const entry = { ...data, id, branch: data.branch || null, createdDate: getDateStr(0), records: [] };
+        setClients(prev => [entry, ...prev]);
       }
-      
-      setClients(prev => [entry, ...prev]);
-      if (tks?.length) setTasks(prev => [...tks.map(t => ({ ...t, id: Date.now()+Math.random(), clientId: id, clientName: data.name, branch: data.branch || null, completed: false })), ...prev]);
   };
 
   const handleAddRecord = (clientId, rec) => {
@@ -1777,12 +1826,59 @@ const App = () => {
       ));
   };
   
-  const handleDeleteTask = (id) => {
+  const handleDeleteClient = async (id) => {
+      try {
+        await api.deleteClient(id);
+      } catch (error) {
+        console.error('Error deleting client:', error);
+      }
+      setClients(clients.filter(cl => cl.id !== id));
+      setEvents(events.filter(e => e.clientId !== id));
+      setTasks(tasks.filter(t => t.clientId !== id));
+  };
+
+  const handleDeleteTask = async (id) => {
+      try {
+        await api.deleteTask(id);
+      } catch (error) {
+        console.error('Error deleting task:', error);
+      }
       setTasks(tasks.filter(t => t.id !== id));
   };
   
-  const handleEditTask = (updatedTask) => {
+  const handleEditTask = async (updatedTask) => {
+      try {
+        await api.updateTask(updatedTask.id, {
+          title: updatedTask.title || updatedTask.task,
+          description: updatedTask.description || '',
+          status: updatedTask.completed ? 'completed' : 'pending',
+          priority: updatedTask.urgency || 'medium'
+        });
+      } catch (error) {
+        console.error('Error updating task:', error);
+      }
       setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+  };
+  
+  const handleSaveClient = async (updatedClient) => {
+      try {
+        await api.updateClient(updatedClient.id, {
+          name: updatedClient.name,
+          phone: updatedClient.phone || '',
+          email: updatedClient.email || '',
+          notes: JSON.stringify({
+            carBrand: updatedClient.carBrand,
+            carModel: updatedClient.carModel,
+            vin: updatedClient.vin,
+            licensePlate: updatedClient.licensePlate,
+            branch: updatedClient.branch,
+            ...updatedClient
+          })
+        });
+      } catch (error) {
+        console.error('Error updating client:', error);
+      }
+      setClients(clients.map(cl => cl.id === updatedClient.id ? {...cl, ...updatedClient, records: cl.records || updatedClient.records || []} : cl));
   };
   
   const handleAddCategory = (category) => {
@@ -1843,13 +1939,13 @@ const App = () => {
       <UserMenu onLogout={handleLogout} />
       
       <div className="flex-1 relative overflow-hidden bg-zinc-50">
-          {activeTab === 'clients' && <ClientsView allClients={filteredClients} onAddClient={handleAddClient} onDeleteClient={(id) => setClients(clients.filter(cl => cl.id !== id))} onOpenClient={setSelectedClient} onEditClient={setEditingClient} ClientForm={ClientForm} currentBranch={currentBranch} dateFilter={clientsDateFilter} onDateFilterChange={setClientsDateFilter} />}
+          {activeTab === 'clients' && <ClientsView allClients={filteredClients} onAddClient={handleAddClient} onDeleteClient={handleDeleteClient} onOpenClient={setSelectedClient} onEditClient={setEditingClient} ClientForm={ClientForm} currentBranch={currentBranch} dateFilter={clientsDateFilter} onDateFilterChange={setClientsDateFilter} />}
           {activeTab === 'tasks' && <TasksView tasks={tasks} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddTask={(t) => setTasks([t, ...tasks])} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} clients={filteredClients} currentBranch={currentBranch} />}
           {activeTab === 'calendar' && <CalendarView events={filteredEvents} clients={filteredClients} onAddRecord={handleAddRecord} onOpenClient={setSelectedClient} categories={categories} currentBranch={currentBranch} />}
           {activeTab === 'finance' && <FinanceView transactions={transactions} onAddTransaction={handleAddManualTransaction} onEditTransaction={handleEditTransaction} onDeleteTransaction={handleDeleteTransaction} categories={categories} onAddCategory={handleAddCategory} onEditCategory={handleEditCategory} onDeleteCategory={handleDeleteCategory} tags={tags} onAddTag={handleAddTag} onDeleteTag={handleDeleteTag} />}
 
-          {selectedClient && <ClientDetails client={filteredClients.find(c => c.id === selectedClient.id) || selectedClient} tasks={tasks} onBack={() => setSelectedClient(null)} onEdit={() => setEditingClient({ client: selectedClient, mode: 'full' })} onDelete={() => {setClients(clients.filter(c => c.id !== selectedClient.id)); setSelectedClient(null);}} onAddTask={(t) => setTasks([t, ...tasks])} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddRecord={handleAddRecord} onEditRecord={handleEditRecord} onCompleteRecord={handleCompleteRecord} onRestoreRecord={handleRestoreRecord} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} onUpdateBranch={handleUpdateClientBranch} activeTab={activeTab} setActiveTab={setActiveTab} categories={categories} />}
-          {editingClient && <ClientForm client={editingClient.client} onSave={(upd) => {setClients(clients.map(cl => cl.id === upd.id ? {...cl, ...upd, records: cl.records || upd.records || []} : cl)); setEditingClient(null); if(selectedClient?.id === upd.id) setSelectedClient({...selectedClient, ...upd});}} onCancel={() => setEditingClient(null)} title={'Редактирование'} currentBranch={currentBranch} />}
+          {selectedClient && <ClientDetails client={filteredClients.find(c => c.id === selectedClient.id) || selectedClient} tasks={tasks} onBack={() => setSelectedClient(null)} onEdit={() => setEditingClient({ client: selectedClient, mode: 'full' })} onDelete={() => {handleDeleteClient(selectedClient.id); setSelectedClient(null);}} onAddTask={(t) => setTasks([t, ...tasks])} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddRecord={handleAddRecord} onEditRecord={handleEditRecord} onCompleteRecord={handleCompleteRecord} onRestoreRecord={handleRestoreRecord} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} onUpdateBranch={handleUpdateClientBranch} activeTab={activeTab} setActiveTab={setActiveTab} categories={categories} />}
+          {editingClient && <ClientForm client={editingClient.client} onSave={(upd) => {handleSaveClient(upd); setEditingClient(null); if(selectedClient?.id === upd.id) setSelectedClient({...selectedClient, ...upd});}} onCancel={() => setEditingClient(null)} title={'Редактирование'} currentBranch={currentBranch} />}
       </div>
       <TabBar activeTab={activeTab} setActiveTab={setActiveTab} userRole={user?.role || 'owner'} />
       <style>{`
