@@ -42,14 +42,11 @@ The project uses an external PostgreSQL database with a dedicated schema `ugt_tu
 - `POSTGRESQL_DBNAME` - Database name
 
 ## Development
-Run the development server:
-```bash
-npm run dev
-```
+The project uses two separate Replit workflows:
+- **Backend**: `npm run server` - Express API on port 3001
+- **Frontend**: `npm run dev` - Vite dev server on port 5000
 
-This starts both:
-- Frontend: `http://0.0.0.0:5000`
-- Backend API: `http://localhost:3001`
+Both workflows are managed by Replit and auto-restart on failure.
 
 API requests to `/api/*` are proxied to the backend.
 
@@ -165,6 +162,11 @@ The application uses secure email/password authentication:
 - `managerOrOwner` - Restricts access to manager or owner roles
 
 ## Recent Changes
+- 2026-01-26: Added global error handlers (uncaughtException, unhandledRejection) to prevent silent server crashes
+- 2026-01-26: Added connection timeout (10s) and pool settings to PostgreSQL configuration
+- 2026-01-26: Changed server to bind to 0.0.0.0 for reliable workflow detection
+- 2026-01-26: Split dev command into separate Backend and Frontend workflows for stability
+- 2026-01-26: Added startup logging for better debugging
 - 2026-01-26: Added AdminPanel with dashboard layout, user management, and activity logs
 - 2026-01-26: Implemented RBAC: Owner (full access), Manager (clients+calendar only), Master (read-only)
 - 2026-01-26: Added activity_logs table for tracking user actions

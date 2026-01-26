@@ -5,6 +5,26 @@ const { Pool } = require('pg');
 const crypto = require('crypto');
 const { promisify } = require('util');
 
+// Глобальные обработчики ошибок - предотвращают внезапное завершение процесса
+process.on('uncaughtException', (error) => {
+  console.error('[FATAL] Uncaught Exception:', error.message);
+  console.error(error.stack);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[ERROR] Unhandled Promise Rejection:', reason);
+});
+
+process.on('SIGTERM', () => {
+  console.log('[INFO] Received SIGTERM, shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('[INFO] Received SIGINT, shutting down gracefully...');
+  process.exit(0);
+});
+
 const scryptAsync = promisify(crypto.scrypt);
 
 // Rate Limiting - хранилище неудачных попыток входа по IP
@@ -96,6 +116,9 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../dist')));
 }
 
+console.log('Starting UGT Tuners backend server...');
+console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
 const pool = new Pool({
   host: process.env.POSTGRESQL_HOST,
   port: parseInt(process.env.POSTGRESQL_PORT || '5432'),
@@ -104,8 +127,17 @@ const pool = new Pool({
   database: process.env.POSTGRESQL_DBNAME,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 10
 });
+
+pool.on('error', (err) => {
+  console.error('Database pool error:', err.message);
+});
+
+console.log('Database pool configured, connecting...');
 
 const SCHEMA = 'ugt_tuners';
 
@@ -1981,7 +2013,7 @@ if (process.env.NODE_ENV === 'production') {
 
 initDatabase()
   .then(() => {
-    const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+    const host = '0.0.0.0';
     app.listen(PORT, host, () => {
       console.log(`Server running on http://${host}:${PORT}`);
       console.log(`Using PostgreSQL schema: ${SCHEMA}`);

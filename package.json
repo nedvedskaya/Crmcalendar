@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "concurrently \"node server/index.cjs\" \"vite\"",
+    "dev": "vite",
     "server": "node server/index.cjs"
   },
   "dependencies": {
