@@ -1442,11 +1442,11 @@ app.post('/api/transactions', authMiddleware, async (req, res) => {
 app.put('/api/transactions/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { type, amount, category, description, title, date, tags } = req.body;
+    const { type, amount, category, description, title, date } = req.body;
     const finalDescription = title || description || '';
     const result = await pool.query(
-      `UPDATE ${SCHEMA}.transactions SET type = $1, amount = $2, category = $3, description = $4, date = $5, tags = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7 RETURNING *`,
-      [type, amount, category, finalDescription, date || new Date(), tags ? JSON.stringify(tags) : null, id]
+      `UPDATE ${SCHEMA}.transactions SET type = $1, amount = $2, category = $3, description = $4, date = $5 WHERE id = $6 RETURNING *`,
+      [type, amount, category, finalDescription, date || new Date(), id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Transaction not found' });
