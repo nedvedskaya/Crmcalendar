@@ -7,6 +7,60 @@ const { promisify } = require('util');
 
 const scryptAsync = promisify(crypto.scrypt);
 
+// Rate Limiting - хранилище неудачных попыток входа по IP
+const loginAttempts = new Map();
+const MAX_ATTEMPTS = 3;
+const BLOCK_DURATION = 5 * 60 * 1000; // 5 минут в миллисекундах
+
+function getClientIP(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
+         req.headers['x-real-ip'] || 
+         req.connection?.remoteAddress || 
+         req.ip || 
+         'unknown';
+}
+
+function isBlocked(ip) {
+  const record = loginAttempts.get(ip);
+  if (!record) return false;
+  
+  if (record.blockedUntil && Date.now() < record.blockedUntil) {
+    return true;
+  }
+  
+  // Если блокировка истекла, сбрасываем счётчик
+  if (record.blockedUntil && Date.now() >= record.blockedUntil) {
+    loginAttempts.delete(ip);
+    return false;
+  }
+  
+  return false;
+}
+
+function recordFailedAttempt(ip) {
+  const record = loginAttempts.get(ip) || { attempts: 0, blockedUntil: null };
+  record.attempts++;
+  record.lastAttempt = Date.now();
+  
+  if (record.attempts >= MAX_ATTEMPTS) {
+    record.blockedUntil = Date.now() + BLOCK_DURATION;
+    console.log(`[Rate Limit] IP ${ip} заблокирован на 5 минут после ${record.attempts} неудачных попыток`);
+  }
+  
+  loginAttempts.set(ip, record);
+  return record;
+}
+
+function resetAttempts(ip) {
+  loginAttempts.delete(ip);
+}
+
+function getRemainingBlockTime(ip) {
+  const record = loginAttempts.get(ip);
+  if (!record || !record.blockedUntil) return 0;
+  return Math.max(0, Math.ceil((record.blockedUntil - Date.now()) / 1000));
+}
+
 // Функции хеширования паролей
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -444,6 +498,20 @@ app.post('/api/register', async (req, res) => {
 // Вход в систему
 app.post('/api/login', async (req, res) => {
   try {
+    const clientIP = getClientIP(req);
+    
+    // Проверяем, не заблокирован ли IP
+    if (isBlocked(clientIP)) {
+      const remainingTime = getRemainingBlockTime(clientIP);
+      const minutes = Math.floor(remainingTime / 60);
+      const seconds = remainingTime % 60;
+      return res.status(429).json({ 
+        error: `Слишком много попыток. Повторите через ${minutes}:${seconds.toString().padStart(2, '0')}`,
+        blocked: true,
+        remainingSeconds: remainingTime
+      });
+    }
+    
     const { email, password } = req.body;
     
     if (!email || !password) {
@@ -458,7 +526,18 @@ app.post('/api/login', async (req, res) => {
     );
     
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Неверный email или пароль' });
+      const record = recordFailedAttempt(clientIP);
+      const attemptsLeft = MAX_ATTEMPTS - record.attempts;
+      if (attemptsLeft > 0) {
+        return res.status(401).json({ error: `Неверный email или пароль. Осталось попыток: ${attemptsLeft}` });
+      } else {
+        const remainingTime = getRemainingBlockTime(clientIP);
+        return res.status(429).json({ 
+          error: `Слишком много попыток. Вход заблокирован на 5 минут`,
+          blocked: true,
+          remainingSeconds: remainingTime
+        });
+      }
     }
     
     const user = result.rows[0];
@@ -471,8 +550,22 @@ app.post('/api/login', async (req, res) => {
     const isValidPassword = await comparePasswords(password, user.password_hash);
     
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Неверный email или пароль' });
+      const record = recordFailedAttempt(clientIP);
+      const attemptsLeft = MAX_ATTEMPTS - record.attempts;
+      if (attemptsLeft > 0) {
+        return res.status(401).json({ error: `Неверный email или пароль. Осталось попыток: ${attemptsLeft}` });
+      } else {
+        const remainingTime = getRemainingBlockTime(clientIP);
+        return res.status(429).json({ 
+          error: `Слишком много попыток. Вход заблокирован на 5 минут`,
+          blocked: true,
+          remainingSeconds: remainingTime
+        });
+      }
     }
+    
+    // Успешный вход - сбрасываем счётчик попыток
+    resetAttempts(clientIP);
     
     // Обновляем время последнего входа
     await pool.query(

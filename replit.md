@@ -135,6 +135,7 @@ The application uses secure email/password authentication:
 - Passwords are hashed using scrypt algorithm with random salt before storage
 - Passwords are never stored in plain text
 - Minimum password length: 6 characters
+- **Rate Limiting**: 3 failed login attempts from one IP = 5 minute block
 
 ### Auth API Endpoints:
 - `POST /api/register` - Register new user (email, password, name)
