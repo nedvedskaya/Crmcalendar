@@ -162,6 +162,7 @@ The application uses secure email/password authentication:
 - `managerOrOwner` - Restricts access to manager or owner roles
 
 ## Recent Changes
+- 2026-01-26: Added comprehensive input sanitization (XSS, SQL injection protection) via middleware
 - 2026-01-26: Added global error handlers (uncaughtException, unhandledRejection) to prevent silent server crashes
 - 2026-01-26: Added connection timeout (10s) and pool settings to PostgreSQL configuration
 - 2026-01-26: Changed server to bind to 0.0.0.0 for reliable workflow detection

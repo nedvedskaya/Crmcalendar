@@ -92,6 +92,109 @@ const SESSION_DURATION = 24 * 60 * 60 * 1000;
 // Время жизни токена сброса пароля (1 час)
 const RESET_TOKEN_DURATION = 60 * 60 * 1000;
 
+// ============ ЗАЩИТА ОТ XSS И ИНЪЕКЦИЙ ============
+
+// Удаляет HTML-теги и скрипты из строки
+function stripHtmlTags(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/');
+}
+
+// Экранирует HTML-символы для безопасного отображения
+function escapeHtml(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
+// Удаляет потенциально опасные SQL-паттерны (дополнительная защита к параметризованным запросам)
+function sanitizeSqlPatterns(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/--/g, '')
+    .replace(/;/g, '')
+    .replace(/\/\*/g, '')
+    .replace(/\*\//g, '')
+    .replace(/xp_/gi, '')
+    .replace(/UNION\s+SELECT/gi, '')
+    .replace(/INSERT\s+INTO/gi, '')
+    .replace(/DROP\s+TABLE/gi, '')
+    .replace(/DELETE\s+FROM/gi, '')
+    .replace(/UPDATE\s+.*SET/gi, '');
+}
+
+// Основная функция санитизации - применяется ко всем пользовательским вводам
+function sanitizeInput(value) {
+  if (value === null || value === undefined) return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    let clean = value.trim();
+    clean = stripHtmlTags(clean);
+    clean = sanitizeSqlPatterns(clean);
+    return clean;
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeInput);
+  }
+  if (typeof value === 'object') {
+    const sanitized = {};
+    for (const key in value) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        sanitized[key] = sanitizeInput(value[key]);
+      }
+    }
+    return sanitized;
+  }
+  return value;
+}
+
+// Санитизация email - приводит к нижнему регистру и очищает
+function sanitizeEmail(email) {
+  if (typeof email !== 'string') return '';
+  return email.toLowerCase().trim().replace(/[<>]/g, '');
+}
+
+// Валидация email
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+// Валидация пароля (минимум 6 символов)
+function isValidPassword(password) {
+  return typeof password === 'string' && password.length >= 6;
+}
+
+// Middleware для автоматической санитизации всех входящих данных
+function sanitizeMiddleware(req, res, next) {
+  if (req.body && typeof req.body === 'object') {
+    req.body = sanitizeInput(req.body);
+  }
+  if (req.query && typeof req.query === 'object') {
+    req.query = sanitizeInput(req.query);
+  }
+  if (req.params && typeof req.params === 'object') {
+    req.params = sanitizeInput(req.params);
+  }
+  next();
+}
+
+// ============ КОНЕЦ ЗАЩИТЫ ОТ XSS И ИНЪЕКЦИЙ ============
+
 // Функции хеширования паролей
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -111,6 +214,7 @@ const PORT = process.env.NODE_ENV === 'production' ? 5000 : 3001;
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use(sanitizeMiddleware);
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../dist')));
