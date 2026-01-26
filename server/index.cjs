@@ -659,6 +659,10 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', schema: SCHEMA });
 });
 
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
 // === АУТЕНТИФИКАЦИЯ ===
 
 // Регистрация нового пользователя
@@ -2126,7 +2130,7 @@ app.get('/api/admin/users', authMiddleware, ownerOnly, async (req, res) => {
 });
 
 if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
+  app.get('/{0,}', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
   });
 }
