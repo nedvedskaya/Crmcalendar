@@ -1737,6 +1737,49 @@ const App = () => {
   };
 
   const handleAddClient = async (data, tks, recs) => {
+      const tempId = Date.now();
+      const entry = { 
+        ...data, 
+        id: tempId, 
+        branch: data.branch || null, 
+        createdDate: getDateStr(0), 
+        records: [] 
+      };
+      
+      if (recs?.length) {
+         const newRecords = recs.map((rec, idx) => {
+            const recordId = tempId + idx + 1;
+            setEvents(prev => [...prev, { 
+                id: tempId + idx + 100, 
+                clientId: tempId, 
+                recordId: recordId, 
+                branch: data.branch || null, 
+                date: rec.date, 
+                endDate: rec.endDate,
+                time: rec.time,
+                service: rec.service,
+                title: `${data.carBrand} (${rec.service})`, 
+                type: 'work' 
+            }]);
+            return { ...rec, id: recordId };
+         });
+         entry.records = newRecords;
+      }
+      
+      setClients(prev => [entry, ...prev]);
+      
+      if (tks?.length) {
+        const newTasks = tks.map(t => ({ 
+          ...t, 
+          id: tempId + Math.random(), 
+          clientId: tempId, 
+          clientName: data.name, 
+          branch: data.branch || null, 
+          completed: false 
+        }));
+        setTasks(prev => [...newTasks, ...prev]);
+      }
+
       try {
         const clientData = {
           name: data.name,
@@ -1754,61 +1797,25 @@ const App = () => {
         };
         
         const savedClient = await api.createClient(clientData);
-        const id = savedClient.id;
-        const entry = { 
-          ...data, 
-          id, 
-          branch: data.branch || null, 
-          createdDate: getDateStr(0), 
-          records: [] 
-        };
+        const realId = savedClient.id;
         
-        if (recs?.length) {
-           const newRecords = recs.map((rec, idx) => {
-              const recordId = Date.now() + idx + 1;
-              setEvents(prev => [...prev, { 
-                  id: Date.now() + idx + 100, 
-                  clientId: id, 
-                  recordId: recordId, 
-                  branch: data.branch || null, 
-                  date: rec.date, 
-                  endDate: rec.endDate,
-                  time: rec.time,
-                  service: rec.service,
-                  title: `${data.carBrand} (${rec.service})`, 
-                  type: 'work' 
-              }]);
-              return { ...rec, id: recordId };
-           });
-           entry.records = newRecords;
-        }
+        setClients(prev => prev.map(c => c.id === tempId ? { ...c, id: realId } : c));
+        setEvents(prev => prev.map(e => e.clientId === tempId ? { ...e, clientId: realId } : e));
+        setTasks(prev => prev.map(t => t.clientId === tempId ? { ...t, clientId: realId } : t));
         
-        setClients(prev => [entry, ...prev]);
         if (tks?.length) {
-          const newTasks = tks.map(t => ({ 
-            ...t, 
-            id: Date.now()+Math.random(), 
-            clientId: id, 
-            clientName: data.name, 
-            branch: data.branch || null, 
-            completed: false 
-          }));
-          setTasks(prev => [...newTasks, ...prev]);
-          for (const task of newTasks) {
+          for (const task of tks) {
             api.createTask({
               title: task.title || task.task,
               description: task.description || '',
               status: 'pending',
               priority: task.urgency || 'medium',
-              client_id: id
+              client_id: realId
             }).catch(console.error);
           }
         }
       } catch (error) {
-        console.error('Error adding client:', error);
-        const id = Date.now();
-        const entry = { ...data, id, branch: data.branch || null, createdDate: getDateStr(0), records: [] };
-        setClients(prev => [entry, ...prev]);
+        console.error('Error saving client to server:', error);
       }
   };
 
@@ -1816,27 +1823,32 @@ const App = () => {
       const c = clients.find(cl => cl.id === clientId);
       if (!c) return;
       
-      const recordData = {
-        client_id: clientId,
-        service: rec.service,
-        date: rec.date,
-        amount: rec.amount || 0,
-        is_paid: rec.isPaid || false,
-        is_completed: rec.isCompleted || false,
-        notes: JSON.stringify({ ...rec, clientId })
-      };
+      const tempRecordId = Date.now();
+      const newRecord = { ...rec, id: tempRecordId };
+      
+      setClients(prev => prev.map(cl => cl.id === clientId ? { ...cl, records: [...(cl.records || []), newRecord] } : cl));
+      setEvents(prev => [...prev, { id: tempRecordId + 1, clientId: clientId, recordId: tempRecordId, branch: c.branch, date: rec.date, endDate: rec.endDate, time: rec.time, service: rec.service, title: `${c.carBrand} (${rec.service})`, type: 'work' }]);
       
       try {
+        const recordData = {
+          client_id: clientId,
+          service: rec.service,
+          date: rec.date,
+          amount: rec.amount || 0,
+          is_paid: rec.isPaid || false,
+          is_completed: rec.isCompleted || false,
+          notes: JSON.stringify({ ...rec, clientId })
+        };
+        
         const saved = await api.createClientRecord(recordData);
-        const newRecord = { ...rec, id: saved.id };
-        setClients(prev => prev.map(cl => cl.id === clientId ? { ...cl, records: [...(cl.records || []), newRecord] } : cl));
-        setEvents(prev => [...prev, { id: Date.now()+1, clientId: clientId, recordId: saved.id, branch: c.branch, date: rec.date, endDate: rec.endDate, time: rec.time, service: rec.service, title: `${c.carBrand} (${rec.service})`, type: 'work' }]);
+        
+        setClients(prev => prev.map(cl => cl.id === clientId ? { 
+          ...cl, 
+          records: (cl.records || []).map(r => r.id === tempRecordId ? { ...r, id: saved.id } : r) 
+        } : cl));
+        setEvents(prev => prev.map(e => e.recordId === tempRecordId ? { ...e, recordId: saved.id } : e));
       } catch (error) {
         console.error('Error saving record:', error);
-        const recordId = Date.now();
-        const newRecord = { ...rec, id: recordId };
-        setClients(prev => prev.map(cl => cl.id === clientId ? { ...cl, records: [...(cl.records || []), newRecord] } : cl));
-        setEvents(prev => [...prev, { id: Date.now()+1, clientId: clientId, recordId: recordId, branch: c.branch, date: rec.date, endDate: rec.endDate, time: rec.time, service: rec.service, title: `${c.carBrand} (${rec.service})`, type: 'work' }]);
       }
   };
 
@@ -1961,24 +1973,33 @@ const App = () => {
   };
   
   const handleDeleteClient = async (id) => {
+      const prevClients = [...clients];
+      const prevEvents = [...events];
+      const prevTasks = [...tasks];
+      
+      setClients(clients.filter(cl => cl.id !== id));
+      setEvents(events.filter(e => e.clientId !== id));
+      setTasks(tasks.filter(t => t.clientId !== id));
+      
       try {
         await api.deleteClient(id);
-        setClients(clients.filter(cl => cl.id !== id));
-        setEvents(events.filter(e => e.clientId !== id));
-        setTasks(tasks.filter(t => t.clientId !== id));
       } catch (error) {
         console.error('Error deleting client:', error);
-        alert('Ошибка при удалении клиента');
+        setClients(prevClients);
+        setEvents(prevEvents);
+        setTasks(prevTasks);
       }
   };
 
   const handleDeleteTask = async (id) => {
+      const prevTasks = [...tasks];
+      setTasks(tasks.filter(t => t.id !== id));
+      
       try {
         await api.deleteTask(id);
-        setTasks(tasks.filter(t => t.id !== id));
       } catch (error) {
         console.error('Error deleting task:', error);
-        alert('Ошибка при удалении задачи');
+        setTasks(prevTasks);
       }
   };
   
@@ -2052,35 +2073,39 @@ const App = () => {
   };
   
   const handleAddManualTransaction = async (transactionData) => {
-      const apiData = { 
-          title: transactionData.title, 
-          description: transactionData.sub || '', 
-          amount: Number(transactionData.amount), 
-          type: transactionData.type,
-          category: transactionData.category || ''
+      const now = new Date();
+      const tempId = Date.now() + Math.random();
+      const newTransaction = { 
+        id: tempId, 
+        title: transactionData.title, 
+        sub: transactionData.sub || '', 
+        amount: Number(transactionData.amount), 
+        type: transactionData.type,
+        date: now.toISOString(),
+        createdDate: getDateStr(0),
+        category: transactionData.category || '',
+        tags: transactionData.tags || []
       };
+      
+      setTransactions(prev => [newTransaction, ...prev]);
+      
       try {
+        const apiData = { 
+            title: transactionData.title, 
+            description: transactionData.sub || '', 
+            amount: Number(transactionData.amount), 
+            type: transactionData.type,
+            category: transactionData.category || ''
+        };
         const saved = await api.createTransaction(apiData);
-        setTransactions(prev => [{ 
-          ...saved,
-          sub: saved.description,
-          createdDate: getDateStr(0),
-          tags: transactionData.tags || []
-        }, ...prev]);
+        
+        setTransactions(prev => prev.map(t => t.id === tempId ? { 
+          ...t, 
+          id: saved.id,
+          title: saved.description || transactionData.title
+        } : t));
       } catch (error) {
         console.error('Error saving transaction:', error);
-        const now = new Date();
-        setTransactions(prev => [{ 
-          id: Date.now() + Math.random(), 
-          title: transactionData.title, 
-          sub: transactionData.sub || '', 
-          amount: Number(transactionData.amount), 
-          type: transactionData.type,
-          date: now.toISOString(),
-          createdDate: getDateStr(0),
-          category: transactionData.category || '',
-          tags: transactionData.tags || []
-        }, ...prev]);
       }
   };
   
