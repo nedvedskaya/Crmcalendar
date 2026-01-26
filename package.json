@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "node server/index.cjs & vite",
+    "dev": "concurrently \"node server/index.cjs\" \"vite\"",
     "server": "node server/index.cjs"
   },
   "dependencies": {
@@ -44,6 +44,7 @@
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
+    "concurrently": "^9.2.1",
     "cors": "^2.8.6",
     "date-fns": "3.6.0",
     "dotenv": "^17.2.3",
