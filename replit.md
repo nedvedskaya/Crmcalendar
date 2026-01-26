@@ -138,12 +138,20 @@ The application uses secure email/password authentication:
 - **Rate Limiting**: 3 failed login attempts from one IP = 5 minute block
 
 ### Auth API Endpoints:
-- `POST /api/register` - Register new user (email, password, name)
 - `POST /api/login` - Login with email/password, returns session token
 - `POST /api/logout` - Invalidate session (requires auth)
 - `POST /api/forgot-password` - Request password reset token
 - `POST /api/reset-password` - Reset password with token
 - `GET /api/user/:id` - Get user by ID
+
+### Profile API Endpoints:
+- `GET /api/profile` - Get current user profile (requires auth)
+- `PUT /api/profile` - Update current user profile (requires auth)
+
+### Admin User Management (owner only):
+- `POST /api/admin/users` - Create new user (admin only)
+- `PUT /api/admin/users/:id` - Update user (admin only)
+- `DELETE /api/admin/users/:id` - Delete user (admin only)
 
 ### Session Management:
 - Sessions stored in `sessions` table with 24hr expiration
@@ -157,11 +165,15 @@ The application uses secure email/password authentication:
 - `managerOrOwner` - Restricts access to manager or owner roles
 
 ## Recent Changes
+- 2026-01-26: Added ProfilePage component with Apple-style minimalist design
+- 2026-01-26: Added admin-only user management (create/update/delete users)
+- 2026-01-26: Removed public registration - login-only with closed access
+- 2026-01-26: Extended users table with first_name, last_name, avatar fields
 - 2026-01-26: Added session-based authentication with tokens (24hr expiry)
 - 2026-01-26: Added auth middleware for protected API routes
 - 2026-01-26: Added password reset flow (forgot-password, reset-password endpoints)
 - 2026-01-26: Added role-based access control middleware (owner, manager)
-- 2026-01-26: Added secure login/registration with password hashing (scrypt)
+- 2026-01-26: Added secure login with password hashing (scrypt)
 - 2026-01-25: Extended database schema with subscription/payment tables, vehicles, client records, categories, tags, branches
 - 2026-01-25: Integrated frontend with PostgreSQL API for persistent data storage
 - 2026-01-25: Added PostgreSQL backend with schema `ugt_tuners` for external database
