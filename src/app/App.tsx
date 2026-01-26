@@ -1495,19 +1495,71 @@ const App = () => {
     const loadData = async () => {
       try {
         setIsLoading(true);
-        const [clientsData, tasksData, transactionsData, categoriesData, tagsData] = await Promise.all([
+        const [clientsData, tasksData, transactionsData, categoriesData, tagsData, recordsData] = await Promise.all([
           api.getClients().catch(() => []),
           api.getTasks().catch(() => []),
           api.getTransactions().catch(() => []),
           api.getData('categories').catch(() => []),
           api.getData('tags').catch(() => []),
+          api.getClientRecords().catch(() => []),
         ]);
         
-        setClients(clientsData || []);
+        // Преобразуем транзакции для совместимости с фронтендом
+        const processedTransactions = (transactionsData || []).map(t => ({
+          ...t,
+          sub: t.description || t.sub || '',
+          createdDate: t.created_at ? new Date(t.created_at).toISOString().split('T')[0] : getDateStr(0)
+        }));
+        
+        // Группируем записи по клиентам
+        const recordsByClient = {};
+        (recordsData || []).forEach(record => {
+          const clientId = record.client_id;
+          if (!recordsByClient[clientId]) {
+            recordsByClient[clientId] = [];
+          }
+          // Восстанавливаем данные записи из notes
+          let recordData = { id: record.id, service: record.service, date: record.date, amount: record.amount, isPaid: record.is_paid, isCompleted: record.is_completed };
+          try {
+            if (record.notes) {
+              const parsed = JSON.parse(record.notes);
+              recordData = { ...parsed, ...recordData };
+            }
+          } catch (e) {}
+          recordsByClient[clientId].push(recordData);
+        });
+        
+        // Объединяем клиентов с их записями
+        const clientsWithRecords = (clientsData || []).map(client => ({
+          ...client,
+          records: recordsByClient[client.id] || []
+        }));
+        
+        // Восстанавливаем события из записей
+        const eventsFromRecords = [];
+        clientsWithRecords.forEach(client => {
+          (client.records || []).forEach(record => {
+            eventsFromRecords.push({
+              id: `event_${record.id}`,
+              clientId: client.id,
+              recordId: record.id,
+              branch: client.branch,
+              date: record.date,
+              endDate: record.endDate,
+              time: record.time,
+              service: record.service,
+              title: `${client.carBrand || ''} (${record.service || ''})`,
+              type: 'work'
+            });
+          });
+        });
+        
+        setClients(clientsWithRecords);
         setTasks(tasksData || []);
-        setTransactions(transactionsData || []);
+        setTransactions(processedTransactions);
         setCategories(categoriesData || []);
         setTags(tagsData || []);
+        setEvents(eventsFromRecords);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -1633,18 +1685,32 @@ const App = () => {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
-  const addTransaction = (amount, title, sub, type = 'income', clientName = '', category = '') => {
+  const addTransaction = async (amount, title, sub, type = 'income', clientName = '', category = '') => {
       const now = new Date();
-      setTransactions(prev => [{ 
-          id: Date.now()+Math.random(), 
+      const transactionData = { 
           title: type === 'income' ? `Оплата: ${title}` : title, 
-          sub: clientName ? `${clientName} • ${sub}` : sub, 
+          description: clientName ? `${clientName} • ${sub}` : sub, 
           amount: Number(amount), 
           type: type,
+          category: category || ''
+      };
+      try {
+        const saved = await api.createTransaction(transactionData);
+        setTransactions(prev => [{ 
+          ...saved,
+          sub: saved.description,
+          createdDate: getDateStr(0)
+        }, ...prev]);
+      } catch (error) {
+        console.error('Error saving transaction:', error);
+        setTransactions(prev => [{ 
+          id: Date.now()+Math.random(), 
+          ...transactionData,
+          sub: transactionData.description,
           date: now.toISOString(),
-          createdDate: getDateStr(0),
-          category: category || '' // Добавляем катег��рию из брони
-      }, ...prev]);
+          createdDate: getDateStr(0)
+        }, ...prev]);
+      }
   };
 
   const handleAddClient = async (data, tks, recs) => {
@@ -1723,38 +1789,65 @@ const App = () => {
       }
   };
 
-  const handleAddRecord = (clientId, rec) => {
+  const handleAddRecord = async (clientId, rec) => {
       const c = clients.find(cl => cl.id === clientId);
       if (!c) return;
-      const recordId = Date.now();
-      const newRecord = { ...rec, id: recordId };
-      setClients(prev => prev.map(cl => cl.id === clientId ? { ...cl, records: [...(cl.records || []), newRecord] } : cl));
-      // Автоматическое создание транзакций отключено
-      // if (rec.isPaid) addTransaction(rec.amount, rec.service, `${c.carBrand} ${c.carModel}`, 'income', c.name, rec.category);
-      setEvents(prev => [...prev, { id: Date.now()+1, clientId: clientId, recordId: recordId, branch: c.branch, date: rec.date, endDate: rec.endDate, time: rec.time, service: rec.service, title: `${c.carBrand} (${rec.service})`, type: 'work' }]);
+      
+      const recordData = {
+        client_id: clientId,
+        service: rec.service,
+        date: rec.date,
+        amount: rec.amount || 0,
+        is_paid: rec.isPaid || false,
+        is_completed: rec.isCompleted || false,
+        notes: JSON.stringify({ ...rec, clientId })
+      };
+      
+      try {
+        const saved = await api.createClientRecord(recordData);
+        const newRecord = { ...rec, id: saved.id };
+        setClients(prev => prev.map(cl => cl.id === clientId ? { ...cl, records: [...(cl.records || []), newRecord] } : cl));
+        setEvents(prev => [...prev, { id: Date.now()+1, clientId: clientId, recordId: saved.id, branch: c.branch, date: rec.date, endDate: rec.endDate, time: rec.time, service: rec.service, title: `${c.carBrand} (${rec.service})`, type: 'work' }]);
+      } catch (error) {
+        console.error('Error saving record:', error);
+        const recordId = Date.now();
+        const newRecord = { ...rec, id: recordId };
+        setClients(prev => prev.map(cl => cl.id === clientId ? { ...cl, records: [...(cl.records || []), newRecord] } : cl));
+        setEvents(prev => [...prev, { id: Date.now()+1, clientId: clientId, recordId: recordId, branch: c.branch, date: rec.date, endDate: rec.endDate, time: rec.time, service: rec.service, title: `${c.carBrand} (${rec.service})`, type: 'work' }]);
+      }
   };
 
-  const handleEditRecord = (clientId, recordId, rec) => {
+  const handleEditRecord = async (clientId, recordId, rec) => {
       const c = clients.find(cl => cl.id === clientId);
       if (!c) return;
-      // Удаляем старое событие из календаря для этой записи
+      
       setEvents(prev => prev.filter(e => !(e.clientId === clientId && e.recordId === recordId)));
-      // Обновляем бронь у клиента
       setClients(prev => prev.map(cl => cl.id === clientId ? { 
           ...cl, 
           records: (cl.records || []).map(r => r.id === recordId ? { ...rec, id: recordId } : r) 
       } : cl));
-      // Добавляем новое событие в календарь (используем филиал клиента)
       setEvents(prev => [...prev, { id: Date.now(), clientId: clientId, recordId: recordId, branch: c.branch, date: rec.date, endDate: rec.endDate, time: rec.time, service: rec.service, title: `${c.carBrand} (${rec.service})`, type: 'work' }]);
+      
+      try {
+        await api.updateClientRecord(recordId, {
+          service: rec.service,
+          date: rec.date,
+          amount: rec.amount || 0,
+          is_paid: rec.isPaid || false,
+          is_completed: rec.isCompleted || false,
+          notes: JSON.stringify({ ...rec, clientId })
+        });
+      } catch (error) {
+        console.error('Error updating record:', error);
+      }
   };
 
-  const handleCompleteRecord = (clientId, recordId) => {
+  const handleCompleteRecord = async (clientId, recordId) => {
       const c = clients.find(cl => cl.id === clientId);
       if (!c) return;
       const record = (c.records || []).find(r => r.id === recordId);
       if (!record) return;
       
-      // Создаем транзакцию при выполнении брони
       if (record.amount) {
           addTransaction(
               record.amount, 
@@ -1766,39 +1859,48 @@ const App = () => {
           );
       }
       
-      // НЕ удаляем событие из календаря - оно останется и станет серым
-      // Помечаем бронь как выполненную
       setClients(prev => prev.map(cl => cl.id === clientId ? { 
           ...cl, 
           records: (cl.records || []).map(r => r.id === recordId ? { ...r, isPaid: true, isCompleted: true } : r) 
       } : cl));
+      
+      try {
+        await api.updateClientRecord(recordId, {
+          is_paid: true,
+          is_completed: true
+        });
+      } catch (error) {
+        console.error('Error completing record:', error);
+      }
   };
   
-  const handleRestoreRecord = (clientId, recordId) => {
+  const handleRestoreRecord = async (clientId, recordId) => {
       const c = clients.find(cl => cl.id === clientId);
       if (!c) return;
       const record = (c.records || []).find(r => r.id === recordId);
       if (!record) return;
       
-      // Удаляем связанную транзакцию из финансов
-      // Ищем транзакцию по характеристикам: сумма, название услуги, имя клиента
       if (record.amount) {
           const transactionTitle = `Оплата: ${record.service || 'Услуга'}`;
-          const transactionSub = `${c.name} • ${c.carBrand} ${c.carModel}`;
           
-          setTransactions(prev => prev.filter(t => {
-              // Проверяем совпадение по ключевым параметрам
+          const matchingTransaction = transactions.find(t => {
               const isSameAmount = t.amount === Number(record.amount);
               const isSameTitle = t.title === transactionTitle;
               const isSameSub = t.sub?.includes(c.name);
               const isIncome = t.type === 'income';
-              
-              // Удаляем транзакцию если совпадают все параметры
-              return !(isSameAmount && isSameTitle && isSameSub && isIncome);
-          }));
+              return isSameAmount && isSameTitle && isSameSub && isIncome;
+          });
+          
+          if (matchingTransaction) {
+            try {
+              await api.deleteTransaction(matchingTransaction.id);
+              setTransactions(prev => prev.filter(t => t.id !== matchingTransaction.id));
+            } catch (error) {
+              console.error('Error deleting transaction:', error);
+            }
+          }
       }
       
-      // Восстанавливаем бронь - убираем флаги выполнения
       setClients(prev => prev.map(cl => cl.id === clientId ? { 
           ...cl, 
           records: (cl.records || []).map(r => r.id === recordId ? { 
@@ -1807,6 +1909,15 @@ const App = () => {
               isCompleted: false 
           } : r) 
       } : cl));
+      
+      try {
+        await api.updateClientRecord(recordId, {
+          is_paid: false,
+          is_completed: false
+        });
+      } catch (error) {
+        console.error('Error restoring record:', error);
+      }
   };
   
   const handleUpdateClientBranch = (clientId, newBranch) => {
@@ -1917,9 +2028,26 @@ const App = () => {
       })));
   };
   
-  const handleAddManualTransaction = (transactionData) => {
-      const now = new Date();
-      setTransactions(prev => [{ 
+  const handleAddManualTransaction = async (transactionData) => {
+      const apiData = { 
+          title: transactionData.title, 
+          description: transactionData.sub || '', 
+          amount: Number(transactionData.amount), 
+          type: transactionData.type,
+          category: transactionData.category || ''
+      };
+      try {
+        const saved = await api.createTransaction(apiData);
+        setTransactions(prev => [{ 
+          ...saved,
+          sub: saved.description,
+          createdDate: getDateStr(0),
+          tags: transactionData.tags || []
+        }, ...prev]);
+      } catch (error) {
+        console.error('Error saving transaction:', error);
+        const now = new Date();
+        setTransactions(prev => [{ 
           id: Date.now() + Math.random(), 
           title: transactionData.title, 
           sub: transactionData.sub || '', 
@@ -1929,15 +2057,36 @@ const App = () => {
           createdDate: getDateStr(0),
           category: transactionData.category || '',
           tags: transactionData.tags || []
-      }, ...prev]);
+        }, ...prev]);
+      }
   };
   
-  const handleEditTransaction = (updatedTransaction) => {
+  const handleEditTransaction = async (updatedTransaction) => {
+      const previousTransactions = [...transactions];
       setTransactions(transactions.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
+      try {
+        await api.updateTransaction(updatedTransaction.id, {
+          title: updatedTransaction.title,
+          description: updatedTransaction.sub || updatedTransaction.description || '',
+          amount: updatedTransaction.amount,
+          type: updatedTransaction.type,
+          category: updatedTransaction.category || ''
+        });
+      } catch (error) {
+        console.error('Error updating transaction:', error);
+        setTransactions(previousTransactions);
+      }
   };
   
-  const handleDeleteTransaction = (id) => {
+  const handleDeleteTransaction = async (id) => {
+      const previousTransactions = [...transactions];
       setTransactions(transactions.filter(t => t.id !== id));
+      try {
+        await api.deleteTransaction(id);
+      } catch (error) {
+        console.error('Error deleting transaction:', error);
+        setTransactions(previousTransactions);
+      }
   };
 
   const filteredEvents = events; // Показываем все события независимо от филиала
