@@ -15,20 +15,16 @@ const EyeOffIcon = () => (
 );
 
 interface LoginScreenProps {
-  onLogin: (userData: { id: number; name: string; email: string; role: string; isOwner: boolean }, token?: string) => void;
+  onLogin: (userData: { id: number; name: string; email: string; role: string; isOwner: boolean; firstName?: string; lastName?: string; avatar?: string }, token?: string) => void;
 }
 
 export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
-  const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -57,25 +53,13 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
       return;
     }
     
-    if (isRegistering) {
-      if (password !== confirmPassword) {
-        setError('Пароли не совпадают');
-        return;
-      }
-    }
-    
     setIsLoading(true);
     
     try {
-      const endpoint = isRegistering ? '/api/register' : '/api/login';
-      const body = isRegistering 
-        ? { email, password, name: name || email.split('@')[0] }
-        : { email, password };
-      
-      const response = await fetch(endpoint, {
+      const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify({ email, password })
       });
       
       const data = await response.json();
@@ -92,7 +76,10 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
           name: data.user.name,
           email: data.user.email,
           role: data.user.role,
-          isOwner: data.user.isOwner
+          isOwner: data.user.isOwner,
+          firstName: data.user.firstName,
+          lastName: data.user.lastName,
+          avatar: data.user.avatar
         }, data.token);
       }
     } catch (err) {
@@ -108,166 +95,97 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
     }
   };
 
-  const toggleMode = () => {
-    setIsRegistering(!isRegistering);
-    setError('');
-    setConfirmPassword('');
-  };
-
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-6">
+    <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-semibold text-black tracking-tight mb-2">
-            UGT TUNERS
-          </h1>
-          <p className="text-base text-zinc-400">
-            {isRegistering ? 'Создайте аккаунт' : 'Войдите в систему'}
-          </p>
-        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-semibold text-zinc-900 tracking-tight mb-1">
+              UGT TUNERS
+            </h1>
+            <p className="text-sm text-zinc-500">
+              Войдите в систему
+            </p>
+          </div>
 
-        <div className="space-y-4 mb-6">
-          {isRegistering && (
+          <div className="space-y-4 mb-6">
             <div>
               <input
-                type="text"
-                value={name}
+                type="email"
+                value={email}
                 onChange={(e) => {
-                  setName(e.target.value);
+                  setEmail(e.target.value);
                   setError('');
                 }}
                 onKeyPress={handleKeyPress}
-                onFocus={() => setFocusedField('name')}
+                onFocus={() => setFocusedField('email')}
                 onBlur={() => setFocusedField(null)}
-                placeholder="Имя (необязательно)"
-                className={`w-full bg-white border ${
-                  focusedField === 'name' ? 'border-orange-500' : 'border-zinc-200'
-                } rounded-xl px-4 py-4 text-base text-black placeholder:text-zinc-400 outline-none transition-all`}
+                placeholder="Email"
+                className={`w-full bg-zinc-50 border ${
+                  focusedField === 'email' ? 'border-zinc-900 bg-white' : error && !email ? 'border-red-400' : 'border-zinc-200'
+                } rounded-xl px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-400 outline-none transition-all`}
+                autoFocus
+                autoComplete="email"
               />
             </div>
-          )}
 
-          <div>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setError('');
-              }}
-              onKeyPress={handleKeyPress}
-              onFocus={() => setFocusedField('email')}
-              onBlur={() => setFocusedField(null)}
-              placeholder="Email"
-              className={`w-full bg-white border ${
-                focusedField === 'email' ? 'border-orange-500' : error && !email ? 'border-red-500' : 'border-zinc-200'
-              } rounded-xl px-4 py-4 text-base text-black placeholder:text-zinc-400 outline-none transition-all`}
-              autoFocus
-              autoComplete="email"
-            />
-          </div>
-
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setError('');
-              }}
-              onKeyPress={handleKeyPress}
-              onFocus={() => setFocusedField('password')}
-              onBlur={() => setFocusedField(null)}
-              placeholder="Пароль"
-              className={`w-full bg-white border ${
-                focusedField === 'password' ? 'border-orange-500' : 'border-zinc-200'
-              } rounded-xl px-4 py-4 pr-12 text-base text-black placeholder:text-zinc-400 outline-none transition-all`}
-              autoComplete={isRegistering ? 'new-password' : 'current-password'}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
-            >
-              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-            </button>
-          </div>
-
-          {isRegistering && (
             <div className="relative">
               <input
-                type={showConfirmPassword ? 'text' : 'password'}
-                value={confirmPassword}
+                type={showPassword ? 'text' : 'password'}
+                value={password}
                 onChange={(e) => {
-                  setConfirmPassword(e.target.value);
+                  setPassword(e.target.value);
                   setError('');
                 }}
                 onKeyPress={handleKeyPress}
-                onFocus={() => setFocusedField('confirmPassword')}
+                onFocus={() => setFocusedField('password')}
                 onBlur={() => setFocusedField(null)}
-                placeholder="Подтвердите пароль"
-                className={`w-full bg-white border ${
-                  focusedField === 'confirmPassword' ? 'border-orange-500' : 'border-zinc-200'
-                } rounded-xl px-4 py-4 pr-12 text-base text-black placeholder:text-zinc-400 outline-none transition-all`}
-                autoComplete="new-password"
+                placeholder="Пароль"
+                className={`w-full bg-zinc-50 border ${
+                  focusedField === 'password' ? 'border-zinc-900 bg-white' : 'border-zinc-200'
+                } rounded-xl px-4 py-3.5 pr-12 text-base text-zinc-900 placeholder:text-zinc-400 outline-none transition-all`}
+                autoComplete="current-password"
               />
               <button
                 type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
               >
-                {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
               </button>
             </div>
-          )}
 
-          {error && (
-            <p className="text-sm text-red-500 px-4">
-              {error}
-            </p>
-          )}
-        </div>
+            {error && (
+              <p className="text-sm text-red-500 px-1">
+                {error}
+              </p>
+            )}
+          </div>
 
-        <button
-          onClick={handleSubmit}
-          disabled={isLoading}
-          className={`w-full bg-orange-500 text-white text-base font-semibold py-4 rounded-xl transition-all active:scale-[0.98] ${
-            isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-orange-600'
-          }`}
-        >
-          {isLoading ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              {isRegistering ? 'Регистрация...' : 'Вход...'}
-            </span>
-          ) : (
-            isRegistering ? 'Зарегистрироваться' : 'Войти'
-          )}
-        </button>
-
-        <div className="mt-6 text-center">
           <button
-            onClick={toggleMode}
-            className="text-sm text-zinc-500 hover:text-orange-500 transition-colors"
+            onClick={handleSubmit}
+            disabled={isLoading}
+            className={`w-full bg-zinc-900 text-white text-base font-medium py-3.5 rounded-xl transition-all ${
+              isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-zinc-800 active:scale-[0.98]'
+            }`}
           >
-            {isRegistering ? (
-              <>Уже есть аккаунт? <span className="text-orange-500 font-medium">Войти</span></>
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Вход...
+              </span>
             ) : (
-              <>Нет аккаунта? <span className="text-orange-500 font-medium">Зарегистрироваться</span></>
+              'Войти'
             )}
           </button>
         </div>
 
-        {!isRegistering && (
-          <div className="mt-6 text-center">
-            <p className="text-xs text-zinc-400">
-              Минимум 6 символов для пароля
-            </p>
-          </div>
-        )}
+        <p className="mt-6 text-center text-xs text-zinc-400">
+          Доступ только для авторизованных пользователей
+        </p>
       </div>
     </div>
   );

@@ -178,8 +178,11 @@ async function initDatabase() {
         username VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         name VARCHAR(255) NOT NULL,
+        first_name VARCHAR(255),
+        last_name VARCHAR(255),
         email VARCHAR(255),
         phone VARCHAR(50),
+        avatar TEXT,
         role VARCHAR(50) NOT NULL DEFAULT 'master',
         is_owner BOOLEAN DEFAULT false,
         branch_id INTEGER REFERENCES ${SCHEMA}.branches(id) ON DELETE SET NULL,
@@ -554,7 +557,7 @@ app.post('/api/login', async (req, res) => {
     
     // Ищем пользователя по email
     const result = await pool.query(
-      `SELECT id, username, email, password_hash, name, role, is_owner, branch_id, is_active 
+      `SELECT id, username, email, password_hash, name, first_name, last_name, avatar, role, is_owner, branch_id, is_active 
        FROM ${SCHEMA}.users WHERE email = $1`,
       [email.toLowerCase().trim()]
     );
@@ -627,6 +630,9 @@ app.post('/api/login', async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        avatar: user.avatar,
         role: user.role,
         isOwner: user.is_owner,
         branchId: user.branch_id
@@ -822,7 +828,207 @@ app.post('/api/reset-password', async (req, res) => {
   }
 });
 
-// Получение текущего пользователя по ID
+// Получение профиля текущего пользователя
+app.get('/api/profile', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, username, email, name, first_name, last_name, avatar, phone, role, is_owner, branch_id, is_active, created_at 
+       FROM ${SCHEMA}.users WHERE id = $1`,
+      [req.user.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    
+    const user = result.rows[0];
+    res.json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      avatar: user.avatar,
+      phone: user.phone,
+      role: user.role,
+      isOwner: user.is_owner,
+      branchId: user.branch_id,
+      createdAt: user.created_at
+    });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ error: 'Ошибка при получении профиля' });
+  }
+});
+
+// Обновление профиля текущего пользователя
+app.put('/api/profile', authMiddleware, async (req, res) => {
+  try {
+    const { firstName, lastName, phone, avatar } = req.body;
+    
+    const result = await pool.query(
+      `UPDATE ${SCHEMA}.users 
+       SET first_name = COALESCE($1, first_name), 
+           last_name = COALESCE($2, last_name), 
+           phone = COALESCE($3, phone),
+           avatar = COALESCE($4, avatar),
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $5 RETURNING id, email, name, first_name, last_name, avatar, phone, role, is_owner`,
+      [firstName, lastName, phone, avatar, req.user.id]
+    );
+    
+    const user = result.rows[0];
+    res.json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      avatar: user.avatar,
+      phone: user.phone,
+      role: user.role,
+      isOwner: user.is_owner
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Ошибка при обновлении профиля' });
+  }
+});
+
+// Создание пользователя администратором
+app.post('/api/admin/users', authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const { email, password, name, firstName, lastName, role, branchId } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email и пароль обязательны' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Пароль должен быть не менее 6 символов' });
+    }
+    
+    const existingUser = await pool.query(
+      `SELECT id FROM ${SCHEMA}.users WHERE email = $1`,
+      [email.toLowerCase().trim()]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+    }
+    
+    const passwordHash = await hashPassword(password);
+    
+    const result = await pool.query(
+      `INSERT INTO ${SCHEMA}.users (username, email, password_hash, name, first_name, last_name, role, branch_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+       RETURNING id, username, email, name, first_name, last_name, role, is_owner, branch_id, is_active, created_at`,
+      [
+        email.toLowerCase().trim(), 
+        email.toLowerCase().trim(), 
+        passwordHash, 
+        name || `${firstName || ''} ${lastName || ''}`.trim() || email.split('@')[0],
+        firstName || null,
+        lastName || null,
+        role || 'master',
+        branchId || null
+      ]
+    );
+    
+    const user = result.rows[0];
+    res.status(201).json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      role: user.role,
+      isOwner: user.is_owner,
+      branchId: user.branch_id,
+      isActive: user.is_active
+    });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Ошибка при создании пользователя' });
+  }
+});
+
+// Обновление пользователя администратором
+app.put('/api/admin/users/:id', authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, firstName, lastName, email, phone, role, branchId, isActive, password } = req.body;
+    
+    let query = `UPDATE ${SCHEMA}.users SET 
+      name = COALESCE($1, name),
+      first_name = COALESCE($2, first_name),
+      last_name = COALESCE($3, last_name),
+      email = COALESCE($4, email),
+      phone = COALESCE($5, phone),
+      role = COALESCE($6, role),
+      branch_id = $7,
+      is_active = COALESCE($8, is_active),
+      updated_at = CURRENT_TIMESTAMP
+      WHERE id = $9 
+      RETURNING id, email, name, first_name, last_name, phone, role, is_owner, branch_id, is_active`;
+    
+    const values = [name, firstName, lastName, email, phone, role, branchId, isActive, id];
+    
+    const result = await pool.query(query, values);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    
+    // Если указан новый пароль - обновляем его отдельно
+    if (password && password.length >= 6) {
+      const passwordHash = await hashPassword(password);
+      await pool.query(
+        `UPDATE ${SCHEMA}.users SET password_hash = $1 WHERE id = $2`,
+        [passwordHash, id]
+      );
+    }
+    
+    const user = result.rows[0];
+    res.json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      phone: user.phone,
+      role: user.role,
+      isOwner: user.is_owner,
+      branchId: user.branch_id,
+      isActive: user.is_active
+    });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Ошибка при обновлении пользователя' });
+  }
+});
+
+// Удаление пользователя администратором
+app.delete('/api/admin/users/:id', authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Нельзя удалить самого себя
+    if (parseInt(id) === req.user.id) {
+      return res.status(400).json({ error: 'Нельзя удалить собственный аккаунт' });
+    }
+    
+    await pool.query(`DELETE FROM ${SCHEMA}.sessions WHERE user_id = $1`, [id]);
+    await pool.query(`DELETE FROM ${SCHEMA}.users WHERE id = $1`, [id]);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Ошибка при удалении пользователя' });
+  }
+});
+
+// Получение пользователя по ID
 app.get('/api/user/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1140,8 +1346,22 @@ app.post('/api/data/:key', authMiddleware, async (req, res) => {
 
 app.get('/api/users', authMiddleware, async (req, res) => {
   try {
-    const result = await pool.query(`SELECT id, username, name, email, phone, role, is_owner, branch_id, is_active, created_at FROM ${SCHEMA}.users ORDER BY name`);
-    res.json(result.rows);
+    const result = await pool.query(`SELECT id, username, name, first_name, last_name, email, phone, avatar, role, is_owner, branch_id, is_active, created_at FROM ${SCHEMA}.users ORDER BY name`);
+    res.json(result.rows.map(u => ({
+      id: u.id,
+      username: u.username,
+      name: u.name,
+      firstName: u.first_name,
+      lastName: u.last_name,
+      email: u.email,
+      phone: u.phone,
+      avatar: u.avatar,
+      role: u.role,
+      isOwner: u.is_owner,
+      branchId: u.branch_id,
+      isActive: u.is_active,
+      createdAt: u.created_at
+    })));
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });

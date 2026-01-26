@@ -192,6 +192,46 @@ export const api = {
     return handleResponse<any[]>(response);
   },
 
+  async getProfile() {
+    const response = await fetch(`${API_BASE}/profile`, { headers: getAuthHeaders() });
+    return handleResponse<any>(response);
+  },
+
+  async updateProfile(data: { firstName?: string; lastName?: string; phone?: string; avatar?: string }) {
+    const response = await fetch(`${API_BASE}/profile`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async createUser(user: { email: string; password: string; name?: string; firstName?: string; lastName?: string; role?: string; branchId?: number }) {
+    const response = await fetch(`${API_BASE}/admin/users`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(user),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async updateUser(id: number, user: any) {
+    const response = await fetch(`${API_BASE}/admin/users/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(user),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async deleteUser(id: number) {
+    const response = await fetch(`${API_BASE}/admin/users/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<any>(response);
+  },
+
   async getBranches() {
     const response = await fetch(`${API_BASE}/branches`, { headers: getAuthHeaders() });
     return handleResponse<any[]>(response);

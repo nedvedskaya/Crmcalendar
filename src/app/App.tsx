@@ -19,6 +19,7 @@ import { FormField, TaskFormFields, BookingFormFields } from '@/app/components/f
 import { ClientsView as ClientsViewComponent } from '@/app/views';
 import { CalendarGrid } from '@/app/components/CalendarGrid';
 import { LoginScreen } from '@/app/components/LoginScreen';
+import { ProfilePage } from '@/app/components/ProfilePage';
 import { UserMenu } from '@/app/components/UserMenu';
 
 // Импорт утилит и констант
@@ -1471,6 +1472,7 @@ const App = () => {
   // Состояние авторизации
   const [isAuth, setIsAuth] = useState(() => isAuthenticated());
   const [user, setUser] = useState(() => getUserAuth());
+  const [showProfile, setShowProfile] = useState(false);
 
   // ВСЕ хуки должны быть вызваны ДО любого условного return
   const [activeTab, setActiveTab] = useState('clients');
@@ -1684,6 +1686,10 @@ const App = () => {
 
   if (!isAuth) {
     return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  if (showProfile) {
+    return <ProfilePage onBack={() => setShowProfile(false)} />;
   }
 
   const addTransaction = async (amount, title, sub, type = 'income', clientName = '', category = '') => {
@@ -2095,7 +2101,7 @@ const App = () => {
   return (
     <div className="w-full h-screen bg-white flex flex-col overflow-hidden">
       {/* Меню пользователя с кнопкой выхода */}
-      <UserMenu onLogout={handleLogout} />
+      <UserMenu onLogout={handleLogout} onShowProfile={() => setShowProfile(true)} />
       
       <div className="flex-1 relative overflow-hidden bg-zinc-50">
           {activeTab === 'clients' && <ClientsView allClients={filteredClients} onAddClient={handleAddClient} onDeleteClient={handleDeleteClient} onOpenClient={setSelectedClient} onEditClient={setEditingClient} ClientForm={ClientForm} currentBranch={currentBranch} dateFilter={clientsDateFilter} onDateFilterChange={setClientsDateFilter} />}
