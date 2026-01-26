@@ -1768,15 +1768,20 @@ const App = () => {
       
       setClients(prev => [entry, ...prev]);
       
+      const tempTaskIds = [];
       if (tks?.length) {
-        const newTasks = tks.map(t => ({ 
-          ...t, 
-          id: tempId + Math.random(), 
-          clientId: tempId, 
-          clientName: data.name, 
-          branch: data.branch || null, 
-          completed: false 
-        }));
+        const newTasks = tks.map((t, idx) => {
+          const taskTempId = `temp_${tempId}_${idx}`;
+          tempTaskIds.push(taskTempId);
+          return { 
+            ...t, 
+            id: taskTempId, 
+            clientId: tempId, 
+            clientName: data.name, 
+            branch: data.branch || null, 
+            completed: false 
+          };
+        });
         setTasks(prev => [...newTasks, ...prev]);
       }
 
@@ -1801,17 +1806,23 @@ const App = () => {
         
         setClients(prev => prev.map(c => c.id === tempId ? { ...c, id: realId } : c));
         setEvents(prev => prev.map(e => e.clientId === tempId ? { ...e, clientId: realId } : e));
-        setTasks(prev => prev.map(t => t.clientId === tempId ? { ...t, clientId: realId } : t));
         
         if (tks?.length) {
-          for (const task of tks) {
-            api.createTask({
-              title: task.title || task.task,
-              description: task.description || '',
-              status: 'pending',
-              priority: task.urgency || 'medium',
-              client_id: realId
-            }).catch(console.error);
+          for (let i = 0; i < tks.length; i++) {
+            const task = tks[i];
+            const tempTaskId = tempTaskIds[i];
+            try {
+              const savedTask = await api.createTask({
+                title: task.title || task.task,
+                description: task.description || '',
+                status: 'pending',
+                priority: task.urgency || 'medium',
+                client_id: realId
+              });
+              setTasks(prev => prev.map(t => t.id === tempTaskId ? { ...t, id: savedTask.id, clientId: realId } : t));
+            } catch (e) {
+              console.error('Error creating task:', e);
+            }
           }
         }
       } catch (error) {
@@ -1992,20 +2003,28 @@ const App = () => {
   };
 
   const handleDeleteTask = async (id) => {
-      const prevTasks = [...tasks];
       setTasks(tasks.filter(t => t.id !== id));
       
-      try {
-        await api.deleteTask(id);
-      } catch (error) {
-        console.error('Error deleting task:', error);
-        setTasks(prevTasks);
+      const isRealId = typeof id === 'number' && id < 2147483647;
+      const isTempId = typeof id === 'string' && id.startsWith('temp_');
+      
+      if (isRealId) {
+        try {
+          await api.deleteTask(id);
+        } catch (error) {
+          console.error('Error deleting task:', error);
+        }
       }
   };
   
   const handleEditTask = async (updatedTask) => {
-      const previousTasks = [...tasks];
       setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+      
+      const isRealId = typeof updatedTask.id === 'number' && updatedTask.id < 2147483647;
+      if (!isRealId) {
+        return;
+      }
+      
       try {
         await api.updateTask(updatedTask.id, {
           title: updatedTask.title || updatedTask.task || '',
@@ -2015,8 +2034,6 @@ const App = () => {
         });
       } catch (error) {
         console.error('Error updating task:', error);
-        setTasks(previousTasks);
-        alert('Ошибка при обновлении задачи');
       }
   };
   
