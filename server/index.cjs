@@ -225,6 +225,22 @@ async function initDatabase() {
       )
     `);
 
+    // Добавляем недостающие колонки в users (для существующих таблиц)
+    await client.query(`
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = '${SCHEMA}' AND table_name = 'users' AND column_name = 'first_name') THEN
+          ALTER TABLE ${SCHEMA}.users ADD COLUMN first_name VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = '${SCHEMA}' AND table_name = 'users' AND column_name = 'last_name') THEN
+          ALTER TABLE ${SCHEMA}.users ADD COLUMN last_name VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = '${SCHEMA}' AND table_name = 'users' AND column_name = 'avatar') THEN
+          ALTER TABLE ${SCHEMA}.users ADD COLUMN avatar TEXT;
+        END IF;
+      END $$;
+    `);
+
     // Логи действий пользователей
     await client.query(`
       CREATE TABLE IF NOT EXISTS ${SCHEMA}.activity_logs (
