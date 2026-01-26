@@ -584,7 +584,7 @@ app.post('/api/login', async (req, res) => {
     
     // Ищем пользователя по email
     const result = await pool.query(
-      `SELECT id, username, email, password_hash, name, first_name, last_name, avatar, role, is_owner, branch_id, is_active 
+      `SELECT id, username, email, password_hash, name, role, is_owner, branch_id, is_active 
        FROM ${SCHEMA}.users WHERE email = $1`,
       [email.toLowerCase().trim()]
     );
