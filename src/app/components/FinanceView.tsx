@@ -701,15 +701,16 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
                                                   tags={transactionTags}
                                                   onEdit={(transaction) => {
                                                       setEditingTransaction(transaction);
+                                                      const transactionTitle = transaction.title || transaction.description || '';
                                                       setNewTransaction({ 
-                                                          title: transaction.title.replace('Оплата: ', ''), 
+                                                          title: transactionTitle.replace('Оплата: ', ''), 
                                                           amount: transaction.amount, 
                                                           type: transaction.type, 
                                                           sub: transaction.sub || '',
                                                           date: new Date(transaction.date).toISOString().split('T')[0]
                                                       });
                                                       setSelectedCategory(transaction.category || '');
-                                                      setSelectedTags(transaction.tags || []);
+                                                      setSelectedTags(Array.isArray(transaction.tags) ? transaction.tags : []);
                                                       setIsAdding(true);
                                                   }}
                                                   onDelete={onDeleteTransaction}

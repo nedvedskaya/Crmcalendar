@@ -1519,8 +1519,10 @@ const App = () => {
         // Преобразуем транзакции для совместимости с фронтендом
         const processedTransactions = (transactionsData || []).map(t => ({
           ...t,
-          sub: t.description || t.sub || '',
-          createdDate: t.created_at ? new Date(t.created_at).toISOString().split('T')[0] : getDateStr(0)
+          title: t.title || t.description || '',
+          sub: t.sub || '',
+          createdDate: t.created_at ? new Date(t.created_at).toISOString().split('T')[0] : getDateStr(0),
+          tags: Array.isArray(t.tags) ? t.tags : (typeof t.tags === 'string' ? JSON.parse(t.tags) : [])
         }));
         
         // Группируем записи по клиентам

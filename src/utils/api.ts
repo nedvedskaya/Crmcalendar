@@ -134,6 +134,15 @@ export const api = {
     return handleResponse<any>(response);
   },
 
+  async updateTransaction(id: number, transaction: any) {
+    const response = await fetch(`${API_BASE}/transactions/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(transaction),
+    });
+    return handleResponse<any>(response);
+  },
+
   async deleteTransaction(id: number) {
     const response = await fetch(`${API_BASE}/transactions/${id}`, {
       method: 'DELETE',

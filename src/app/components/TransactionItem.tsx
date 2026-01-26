@@ -24,7 +24,7 @@ export const TransactionItem = ({ transaction: t, category, tags: transactionTag
             <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-1">
-                        <span className="text-base font-semibold text-gray-900">{String(t.title || '')}</span>
+                        <span className="text-base font-semibold text-gray-900">{String(t.title || t.description || '')}</span>
                         <span className={`text-base font-bold ml-3 shrink-0 ${isIncome ? 'text-green-600' : 'text-red-600'}`}>
                             {isIncome ? '+' : '-'}{formatMoney(t.amount)} ₽
                         </span>
