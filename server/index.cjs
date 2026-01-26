@@ -2,6 +2,24 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { Pool } = require('pg');
+const crypto = require('crypto');
+const { promisify } = require('util');
+
+const scryptAsync = promisify(crypto.scrypt);
+
+// Функции хеширования паролей
+async function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const buf = await scryptAsync(password, salt, 64);
+  return `${buf.toString('hex')}.${salt}`;
+}
+
+async function comparePasswords(supplied, stored) {
+  const [hashed, salt] = stored.split('.');
+  const hashedBuf = Buffer.from(hashed, 'hex');
+  const suppliedBuf = await scryptAsync(supplied, salt, 64);
+  return crypto.timingSafeEqual(hashedBuf, suppliedBuf);
+}
 
 const app = express();
 const PORT = process.env.NODE_ENV === 'production' ? 5000 : 3001;
@@ -369,6 +387,143 @@ async function initDatabase() {
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', schema: SCHEMA });
+});
+
+// === АУТЕНТИФИКАЦИЯ ===
+
+// Регистрация нового пользователя
+app.post('/api/register', async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email и пароль обязательны' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Пароль должен быть не менее 6 символов' });
+    }
+    
+    // Проверяем, существует ли пользователь с таким email
+    const existingUser = await pool.query(
+      `SELECT id FROM ${SCHEMA}.users WHERE email = $1`,
+      [email.toLowerCase().trim()]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+    }
+    
+    // Хешируем пароль
+    const passwordHash = await hashPassword(password);
+    
+    // Создаем пользователя
+    const result = await pool.query(
+      `INSERT INTO ${SCHEMA}.users (username, email, password_hash, name, role, is_owner) 
+       VALUES ($1, $2, $3, $4, 'owner', true) RETURNING id, username, email, name, role, is_owner, branch_id, created_at`,
+      [email.toLowerCase().trim(), email.toLowerCase().trim(), passwordHash, name || email.split('@')[0]]
+    );
+    
+    const user = result.rows[0];
+    res.status(201).json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        isOwner: user.is_owner
+      }
+    });
+  } catch (error) {
+    console.error('Error registering user:', error);
+    res.status(500).json({ error: 'Ошибка при регистрации' });
+  }
+});
+
+// Вход в систему
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email и пароль обязательны' });
+    }
+    
+    // Ищем пользователя по email
+    const result = await pool.query(
+      `SELECT id, username, email, password_hash, name, role, is_owner, branch_id, is_active 
+       FROM ${SCHEMA}.users WHERE email = $1`,
+      [email.toLowerCase().trim()]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Неверный email или пароль' });
+    }
+    
+    const user = result.rows[0];
+    
+    if (!user.is_active) {
+      return res.status(401).json({ error: 'Аккаунт деактивирован' });
+    }
+    
+    // Проверяем пароль
+    const isValidPassword = await comparePasswords(password, user.password_hash);
+    
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Неверный email или пароль' });
+    }
+    
+    // Обновляем время последнего входа
+    await pool.query(
+      `UPDATE ${SCHEMA}.users SET last_login = CURRENT_TIMESTAMP WHERE id = $1`,
+      [user.id]
+    );
+    
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        isOwner: user.is_owner,
+        branchId: user.branch_id
+      }
+    });
+  } catch (error) {
+    console.error('Error logging in:', error);
+    res.status(500).json({ error: 'Ошибка при входе' });
+  }
+});
+
+// Получение текущего пользователя по ID
+app.get('/api/user/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT id, username, email, name, role, is_owner, branch_id, is_active, created_at 
+       FROM ${SCHEMA}.users WHERE id = $1`,
+      [parseInt(id)]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    
+    const user = result.rows[0];
+    res.json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      isOwner: user.is_owner,
+      branchId: user.branch_id
+    });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
 });
 
 app.get('/api/clients', async (req, res) => {

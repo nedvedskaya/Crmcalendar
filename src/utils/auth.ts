@@ -1,8 +1,11 @@
 // Утилиты для работы с авторизацией
 
 export interface UserData {
+  id?: number;
   name: string;
+  email?: string;
   role: 'owner' | 'manager' | 'master';
+  isOwner?: boolean;
   loginDate: string;
 }
 

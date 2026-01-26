@@ -130,7 +130,19 @@ All endpoints are prefixed with `/api`:
 - `GET/POST /data/:key` - Generic key-value storage
 - `GET /health` - Health check
 
+## Authentication
+The application uses secure email/password authentication:
+- Passwords are hashed using scrypt algorithm with random salt before storage
+- Passwords are never stored in plain text
+- Minimum password length: 6 characters
+
+### Auth API Endpoints:
+- `POST /api/register` - Register new user (email, password, name)
+- `POST /api/login` - Login with email/password
+- `GET /api/user/:id` - Get user by ID
+
 ## Recent Changes
+- 2026-01-26: Added secure login/registration with password hashing (scrypt)
 - 2026-01-25: Extended database schema with subscription/payment tables, vehicles, client records, categories, tags, branches
 - 2026-01-25: Integrated frontend with PostgreSQL API for persistent data storage
 - 2026-01-25: Added PostgreSQL backend with schema `ugt_tuners` for external database

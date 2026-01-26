@@ -1636,8 +1636,8 @@ const App = () => {
   }, [tags, isLoading]);
 
   // Обработка входа
-  const handleLogin = (userData: { name: string; role: string }) => {
-    saveUserAuth(userData);
+  const handleLogin = (userData: { id: number; name: string; email: string; role: string; isOwner: boolean }) => {
+    saveUserAuth({ name: userData.name, role: userData.role, email: userData.email, id: userData.id, isOwner: userData.isOwner });
     setUser(getUserAuth());
     setIsAuth(true);
   };

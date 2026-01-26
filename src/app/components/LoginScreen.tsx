@@ -1,70 +1,156 @@
 import { useState } from 'react';
 
 interface LoginScreenProps {
-  onLogin: (userData: { name: string; role: string }) => void;
+  onLogin: (userData: { id: number; name: string; email: string; role: string; isOwner: boolean }) => void;
 }
 
 export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
-  const [name, setName] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  const handleLogin = () => {
-    if (!name.trim()) {
-      setError('Введите имя');
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const handleSubmit = async () => {
+    setError('');
+    
+    if (!email.trim()) {
+      setError('Введите email');
       return;
     }
-
-    if (password === 'owner' || password === 'собственник') {
-      onLogin({ name: name.trim(), role: 'owner' });
-    } else {
-      setError('Неверный пароль');
+    
+    if (!validateEmail(email)) {
+      setError('Введите корректный email');
+      return;
+    }
+    
+    if (!password) {
+      setError('Введите пароль');
+      return;
+    }
+    
+    if (password.length < 6) {
+      setError('Пароль должен быть не менее 6 символов');
+      return;
+    }
+    
+    if (isRegistering) {
+      if (password !== confirmPassword) {
+        setError('Пароли не совпадают');
+        return;
+      }
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const endpoint = isRegistering ? '/api/register' : '/api/login';
+      const body = isRegistering 
+        ? { email, password, name: name || email.split('@')[0] }
+        : { email, password };
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setError(data.error || 'Произошла ошибка');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (data.success && data.user) {
+        onLogin({
+          id: data.user.id,
+          name: data.user.name,
+          email: data.user.email,
+          role: data.user.role,
+          isOwner: data.user.isOwner
+        });
+      }
+    } catch (err) {
+      setError('Ошибка соединения с сервером');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleLogin();
+      handleSubmit();
     }
+  };
+
+  const toggleMode = () => {
+    setIsRegistering(!isRegistering);
+    setError('');
+    setConfirmPassword('');
   };
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        {/* Минималистичный логотип */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <h1 className="text-3xl font-semibold text-black tracking-tight mb-2">
             UGT TUNERS
           </h1>
           <p className="text-base text-zinc-400">
-            Войдите в систему
+            {isRegistering ? 'Создайте аккаунт' : 'Войдите в систему'}
           </p>
         </div>
 
-        {/* Чистая форма */}
         <div className="space-y-4 mb-6">
-          {/* Имя */}
+          {isRegistering && (
+            <div>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setError('');
+                }}
+                onKeyPress={handleKeyPress}
+                onFocus={() => setFocusedField('name')}
+                onBlur={() => setFocusedField(null)}
+                placeholder="Имя (необязательно)"
+                className={`w-full bg-white border ${
+                  focusedField === 'name' ? 'border-orange-500' : 'border-zinc-200'
+                } rounded-xl px-4 py-4 text-base text-black placeholder:text-zinc-400 outline-none transition-all`}
+              />
+            </div>
+          )}
+
           <div>
             <input
-              type="text"
-              value={name}
+              type="email"
+              value={email}
               onChange={(e) => {
-                setName(e.target.value);
+                setEmail(e.target.value);
                 setError('');
               }}
               onKeyPress={handleKeyPress}
-              onFocus={() => setFocusedField('name')}
+              onFocus={() => setFocusedField('email')}
               onBlur={() => setFocusedField(null)}
-              placeholder="Логин"
+              placeholder="Email"
               className={`w-full bg-white border ${
-                focusedField === 'name' ? 'border-orange-500' : error && !name ? 'border-red-500' : 'border-zinc-200'
+                focusedField === 'email' ? 'border-orange-500' : error && !email ? 'border-red-500' : 'border-zinc-200'
               } rounded-xl px-4 py-4 text-base text-black placeholder:text-zinc-400 outline-none transition-all`}
               autoFocus
+              autoComplete="email"
             />
           </div>
 
-          {/* Пароль */}
           <div>
             <input
               type="password"
@@ -78,12 +164,33 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
               onBlur={() => setFocusedField(null)}
               placeholder="Пароль"
               className={`w-full bg-white border ${
-                focusedField === 'password' ? 'border-orange-500' : error && password !== 'owner' ? 'border-red-500' : 'border-zinc-200'
+                focusedField === 'password' ? 'border-orange-500' : 'border-zinc-200'
               } rounded-xl px-4 py-4 text-base text-black placeholder:text-zinc-400 outline-none transition-all`}
+              autoComplete={isRegistering ? 'new-password' : 'current-password'}
             />
           </div>
 
-          {/* Ошибка - минималистично */}
+          {isRegistering && (
+            <div>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setError('');
+                }}
+                onKeyPress={handleKeyPress}
+                onFocus={() => setFocusedField('confirmPassword')}
+                onBlur={() => setFocusedField(null)}
+                placeholder="Подтвердите пароль"
+                className={`w-full bg-white border ${
+                  focusedField === 'confirmPassword' ? 'border-orange-500' : 'border-zinc-200'
+                } rounded-xl px-4 py-4 text-base text-black placeholder:text-zinc-400 outline-none transition-all`}
+                autoComplete="new-password"
+              />
+            </div>
+          )}
+
           {error && (
             <p className="text-sm text-red-500 px-4">
               {error}
@@ -91,20 +198,46 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
           )}
         </div>
 
-        {/* Единственная кнопка - акцент */}
         <button
-          onClick={handleLogin}
-          className="w-full bg-orange-500 text-white text-base font-semibold py-4 rounded-xl hover:bg-orange-600 transition-all active:scale-[0.98]"
+          onClick={handleSubmit}
+          disabled={isLoading}
+          className={`w-full bg-orange-500 text-white text-base font-semibold py-4 rounded-xl transition-all active:scale-[0.98] ${
+            isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-orange-600'
+          }`}
         >
-          Войти
+          {isLoading ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              {isRegistering ? 'Регистрация...' : 'Вход...'}
+            </span>
+          ) : (
+            isRegistering ? 'Зарегистрироваться' : 'Войти'
+          )}
         </button>
 
-        {/* Подсказка - ненавязчиво */}
-        <div className="mt-8 text-center">
-          <p className="text-sm text-zinc-400">
-            Используйте пароль <span className="text-zinc-600 font-medium">owner</span>
-          </p>
+        <div className="mt-6 text-center">
+          <button
+            onClick={toggleMode}
+            className="text-sm text-zinc-500 hover:text-orange-500 transition-colors"
+          >
+            {isRegistering ? (
+              <>Уже есть аккаунт? <span className="text-orange-500 font-medium">Войти</span></>
+            ) : (
+              <>Нет аккаунта? <span className="text-orange-500 font-medium">Зарегистрироваться</span></>
+            )}
+          </button>
         </div>
+
+        {!isRegistering && (
+          <div className="mt-6 text-center">
+            <p className="text-xs text-zinc-400">
+              Минимум 6 символов для пароля
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
