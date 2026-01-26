@@ -20,6 +20,7 @@ import { ClientsView as ClientsViewComponent } from '@/app/views';
 import { CalendarGrid } from '@/app/components/CalendarGrid';
 import { LoginScreen } from '@/app/components/LoginScreen';
 import { ProfilePage } from '@/app/components/ProfilePage';
+import { AdminPanel } from '@/app/components/AdminPanel';
 import { UserMenu } from '@/app/components/UserMenu';
 
 // Импорт утилит и констант
@@ -537,7 +538,7 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
 
 // --- 5. MAIN VIEWS ---
 
-const ClientDetails = ({ client, onBack, tasks, onEdit, onAddTask, onDelete, onToggleTask, onAddRecord, onEditRecord, onCompleteRecord, onRestoreRecord, onDeleteTask, onEditTask, onUpdateBranch, activeTab, setActiveTab, categories }) => {
+const ClientDetails = ({ client, onBack, tasks, onEdit, onAddTask, onDelete, onToggleTask, onAddRecord, onEditRecord, onCompleteRecord, onRestoreRecord, onDeleteTask, onEditTask, onUpdateBranch, activeTab, setActiveTab, categories, userRole = 'owner' }) => {
     const clientTasks = tasks.filter(t => t.clientId === client.id);
     const activeTasks = clientTasks.filter(t => !t.completed);
     const completedTasks = clientTasks.filter(t => t.completed);
@@ -937,30 +938,38 @@ const ClientDetails = ({ client, onBack, tasks, onEdit, onAddTask, onDelete, onT
             {/* Навигация внизу карточки клиента */}
             <div className="sticky bottom-0 bg-white border-t border-zinc-200 px-6 py-3 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
                 <div className="flex gap-2">
-                    <TabButton 
-                        isActive={activeTab === 'clients'}
-                        icon={Users}
-                        label="Клиенты"
-                        onClick={() => { onBack(); setActiveTab('clients'); }}
-                    />
-                    <TabButton 
-                        isActive={activeTab === 'tasks'}
-                        icon={CheckSquare}
-                        label="Задачи"
-                        onClick={() => { onBack(); setActiveTab('tasks'); }}
-                    />
-                    <TabButton 
-                        isActive={activeTab === 'calendar'}
-                        icon={Calendar}
-                        label="Календарь"
-                        onClick={() => { onBack(); setActiveTab('calendar'); }}
-                    />
-                    <TabButton 
-                        isActive={activeTab === 'finance'}
-                        icon={Wallet}
-                        label="Финансы"
-                        onClick={() => { onBack(); setActiveTab('finance'); }}
-                    />
+                    {canAccessTab(userRole, 'clients') && (
+                        <TabButton 
+                            isActive={activeTab === 'clients'}
+                            icon={Users}
+                            label="Клиенты"
+                            onClick={() => { onBack(); setActiveTab('clients'); }}
+                        />
+                    )}
+                    {canAccessTab(userRole, 'tasks') && (
+                        <TabButton 
+                            isActive={activeTab === 'tasks'}
+                            icon={CheckSquare}
+                            label="Задачи"
+                            onClick={() => { onBack(); setActiveTab('tasks'); }}
+                        />
+                    )}
+                    {canAccessTab(userRole, 'calendar') && (
+                        <TabButton 
+                            isActive={activeTab === 'calendar'}
+                            icon={Calendar}
+                            label="Календарь"
+                            onClick={() => { onBack(); setActiveTab('calendar'); }}
+                        />
+                    )}
+                    {canAccessTab(userRole, 'finance') && (
+                        <TabButton 
+                            isActive={activeTab === 'finance'}
+                            icon={Wallet}
+                            label="Финансы"
+                            onClick={() => { onBack(); setActiveTab('finance'); }}
+                        />
+                    )}
                 </div>
             </div>
         </div>
@@ -1473,6 +1482,7 @@ const App = () => {
   const [isAuth, setIsAuth] = useState(() => isAuthenticated());
   const [user, setUser] = useState(() => getUserAuth());
   const [showProfile, setShowProfile] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   // ВСЕ хуки должны быть вызваны ДО любого условного return
   const [activeTab, setActiveTab] = useState('clients');
@@ -1690,6 +1700,10 @@ const App = () => {
 
   if (showProfile) {
     return <ProfilePage onBack={() => setShowProfile(false)} />;
+  }
+
+  if (showAdmin) {
+    return <AdminPanel onBack={() => setShowAdmin(false)} />;
   }
 
   const addTransaction = async (amount, title, sub, type = 'income', clientName = '', category = '') => {
@@ -2101,7 +2115,7 @@ const App = () => {
   return (
     <div className="w-full h-screen bg-white flex flex-col overflow-hidden">
       {/* Меню пользователя с кнопкой выхода */}
-      <UserMenu onLogout={handleLogout} onShowProfile={() => setShowProfile(true)} />
+      <UserMenu onLogout={handleLogout} onShowProfile={() => setShowProfile(true)} onShowAdmin={() => setShowAdmin(true)} />
       
       <div className="flex-1 relative overflow-hidden bg-zinc-50">
           {activeTab === 'clients' && <ClientsView allClients={filteredClients} onAddClient={handleAddClient} onDeleteClient={handleDeleteClient} onOpenClient={setSelectedClient} onEditClient={setEditingClient} ClientForm={ClientForm} currentBranch={currentBranch} dateFilter={clientsDateFilter} onDateFilterChange={setClientsDateFilter} />}
@@ -2109,7 +2123,7 @@ const App = () => {
           {activeTab === 'calendar' && <CalendarView events={filteredEvents} clients={filteredClients} onAddRecord={handleAddRecord} onOpenClient={setSelectedClient} categories={categories} currentBranch={currentBranch} />}
           {activeTab === 'finance' && <FinanceView transactions={transactions} onAddTransaction={handleAddManualTransaction} onEditTransaction={handleEditTransaction} onDeleteTransaction={handleDeleteTransaction} categories={categories} onAddCategory={handleAddCategory} onEditCategory={handleEditCategory} onDeleteCategory={handleDeleteCategory} tags={tags} onAddTag={handleAddTag} onDeleteTag={handleDeleteTag} />}
 
-          {selectedClient && <ClientDetails client={filteredClients.find(c => c.id === selectedClient.id) || selectedClient} tasks={tasks} onBack={() => setSelectedClient(null)} onEdit={() => setEditingClient({ client: selectedClient, mode: 'full' })} onDelete={() => {handleDeleteClient(selectedClient.id); setSelectedClient(null);}} onAddTask={(t) => setTasks([t, ...tasks])} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddRecord={handleAddRecord} onEditRecord={handleEditRecord} onCompleteRecord={handleCompleteRecord} onRestoreRecord={handleRestoreRecord} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} onUpdateBranch={handleUpdateClientBranch} activeTab={activeTab} setActiveTab={setActiveTab} categories={categories} />}
+          {selectedClient && <ClientDetails client={filteredClients.find(c => c.id === selectedClient.id) || selectedClient} tasks={tasks} onBack={() => setSelectedClient(null)} onEdit={() => setEditingClient({ client: selectedClient, mode: 'full' })} onDelete={() => {handleDeleteClient(selectedClient.id); setSelectedClient(null);}} onAddTask={(t) => setTasks([t, ...tasks])} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddRecord={handleAddRecord} onEditRecord={handleEditRecord} onCompleteRecord={handleCompleteRecord} onRestoreRecord={handleRestoreRecord} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} onUpdateBranch={handleUpdateClientBranch} activeTab={activeTab} setActiveTab={setActiveTab} categories={categories} userRole={user?.role || 'owner'} />}
           {editingClient && <ClientForm client={editingClient.client} onSave={(upd) => {handleSaveClient(upd); setEditingClient(null); if(selectedClient?.id === upd.id) setSelectedClient({...selectedClient, ...upd});}} onCancel={() => setEditingClient(null)} title={'Редактирование'} currentBranch={currentBranch} />}
       </div>
       <TabBar activeTab={activeTab} setActiveTab={setActiveTab} userRole={user?.role || 'owner'} />

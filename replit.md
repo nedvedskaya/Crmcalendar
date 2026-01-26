@@ -165,6 +165,10 @@ The application uses secure email/password authentication:
 - `managerOrOwner` - Restricts access to manager or owner roles
 
 ## Recent Changes
+- 2026-01-26: Added AdminPanel with dashboard layout, user management, and activity logs
+- 2026-01-26: Implemented RBAC: Owner (full access), Manager (clients+calendar only), Master (read-only)
+- 2026-01-26: Added activity_logs table for tracking user actions
+- 2026-01-26: Hidden Tasks and Finance tabs for managers
 - 2026-01-26: Added ProfilePage component with Apple-style minimalist design
 - 2026-01-26: Added admin-only user management (create/update/delete users)
 - 2026-01-26: Removed public registration - login-only with closed access

@@ -1,13 +1,15 @@
-import { LogOut, User, ChevronDown } from 'lucide-react';
+import { LogOut, User, Settings, ChevronDown } from 'lucide-react';
 import { getUserAuth, logout } from '@/utils/auth';
+import { isAdmin } from '@/utils/permissions';
 import { useState } from 'react';
 
 interface UserMenuProps {
   onLogout: () => void;
   onShowProfile?: () => void;
+  onShowAdmin?: () => void;
 }
 
-export const UserMenu = ({ onLogout, onShowProfile }: UserMenuProps) => {
+export const UserMenu = ({ onLogout, onShowProfile, onShowAdmin }: UserMenuProps) => {
   const user = getUserAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -19,6 +21,8 @@ export const UserMenu = ({ onLogout, onShowProfile }: UserMenuProps) => {
       onLogout();
     }
   };
+
+  const userIsAdmin = isAdmin(user.role as any);
 
   return (
     <div className="bg-white border-b border-zinc-200 px-4 py-2 relative">
@@ -42,7 +46,7 @@ export const UserMenu = ({ onLogout, onShowProfile }: UserMenuProps) => {
             onClick={() => setIsMenuOpen(false)}
           />
           
-          <div className="absolute top-full left-4 mt-1 bg-white rounded-xl shadow-xl border border-zinc-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 min-w-[160px]">
+          <div className="absolute top-full left-4 mt-1 bg-white rounded-xl shadow-xl border border-zinc-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 min-w-[180px]">
             {onShowProfile && (
               <button
                 onClick={() => {
@@ -54,6 +58,20 @@ export const UserMenu = ({ onLogout, onShowProfile }: UserMenuProps) => {
                 <User size={16} className="text-zinc-600" />
                 <span className="text-sm font-medium text-zinc-700">
                   Профиль
+                </span>
+              </button>
+            )}
+            {userIsAdmin && onShowAdmin && (
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onShowAdmin();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-50 transition-colors group border-b border-zinc-100"
+              >
+                <Settings size={16} className="text-zinc-600" />
+                <span className="text-sm font-medium text-zinc-700">
+                  Админ-панель
                 </span>
               </button>
             )}

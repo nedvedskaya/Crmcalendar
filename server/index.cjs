@@ -193,6 +193,22 @@ async function initDatabase() {
       )
     `);
 
+    // Логи действий пользователей
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ${SCHEMA}.activity_logs (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES ${SCHEMA}.users(id) ON DELETE SET NULL,
+        user_name VARCHAR(255),
+        action VARCHAR(100) NOT NULL,
+        entity_type VARCHAR(100),
+        entity_id INTEGER,
+        entity_name VARCHAR(255),
+        details TEXT,
+        ip_address VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Подписки пользователей (связь владельца с тарифом)
     await client.query(`
       CREATE TABLE IF NOT EXISTS ${SCHEMA}.user_subscriptions (
@@ -476,6 +492,17 @@ async function initDatabase() {
   }
 }
 
+async function logActivity(userId, userName, action, entityType, entityId, entityName, details, ipAddress) {
+  try {
+    await pool.query(
+      `INSERT INTO ${SCHEMA}.activity_logs (user_id, user_name, action, entity_type, entity_id, entity_name, details, ip_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [userId, userName, action, entityType, entityId, entityName, details, ipAddress]
+    );
+  } catch (error) {
+    console.error('Error logging activity:', error);
+  }
+}
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', schema: SCHEMA });
 });
@@ -622,6 +649,9 @@ app.post('/api/login', async (req, res) => {
       `UPDATE ${SCHEMA}.users SET last_login = CURRENT_TIMESTAMP WHERE id = $1`,
       [user.id]
     );
+    
+    // Логируем вход
+    await logActivity(user.id, user.name, 'login', 'user', user.id, user.name, null, clientIP);
     
     res.json({
       success: true,
@@ -936,6 +966,9 @@ app.post('/api/admin/users', authMiddleware, ownerOnly, async (req, res) => {
     );
     
     const user = result.rows[0];
+    
+    await logActivity(req.user.id, req.user.name, 'user_created', 'user', user.id, user.name, `Role: ${user.role}`, req.ip);
+    
     res.status(201).json({
       id: user.id,
       email: user.email,
@@ -1814,6 +1847,129 @@ app.put('/api/payments/:id', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Error updating payment:', error);
     res.status(500).json({ error: 'Failed to update payment' });
+  }
+});
+
+// === ACTIVITY LOGS ===
+
+app.get('/api/activity-logs', authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const { limit = 100, offset = 0, user_id, action } = req.query;
+    let query = `SELECT * FROM ${SCHEMA}.activity_logs`;
+    const params = [];
+    const conditions = [];
+    
+    if (user_id) {
+      params.push(user_id);
+      conditions.push(`user_id = $${params.length}`);
+    }
+    if (action) {
+      params.push(action);
+      conditions.push(`action = $${params.length}`);
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(limit, offset);
+    
+    const result = await pool.query(query, params);
+    res.json(result.rows.map(log => ({
+      id: log.id,
+      userId: log.user_id,
+      userName: log.user_name,
+      action: log.action,
+      entityType: log.entity_type,
+      entityId: log.entity_id,
+      entityName: log.entity_name,
+      details: log.details,
+      ipAddress: log.ip_address,
+      createdAt: log.created_at
+    })));
+  } catch (error) {
+    console.error('Error fetching activity logs:', error);
+    res.status(500).json({ error: 'Failed to fetch activity logs' });
+  }
+});
+
+// Block/unblock user
+app.put('/api/admin/users/:id/block', authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_active } = req.body;
+    
+    if (req.user.id === parseInt(id)) {
+      return res.status(400).json({ error: 'Cannot block yourself' });
+    }
+    
+    const result = await pool.query(
+      `UPDATE ${SCHEMA}.users SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, username, name, email, role, is_active`,
+      [is_active, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const action = is_active ? 'user_unblocked' : 'user_blocked';
+    await logActivity(req.user.id, req.user.name, action, 'user', parseInt(id), result.rows[0].name, null, req.ip);
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error blocking user:', error);
+    res.status(500).json({ error: 'Failed to update user status' });
+  }
+});
+
+// Get all users for admin (with detailed info)
+app.get('/api/admin/users', authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const { search, role, is_active } = req.query;
+    let query = `SELECT id, username, name, first_name, last_name, email, phone, avatar, role, is_owner, branch_id, is_active, last_login, created_at FROM ${SCHEMA}.users`;
+    const params = [];
+    const conditions = [];
+    
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(name ILIKE $${params.length} OR email ILIKE $${params.length} OR username ILIKE $${params.length})`);
+    }
+    if (role) {
+      params.push(role);
+      conditions.push(`role = $${params.length}`);
+    }
+    if (is_active !== undefined) {
+      params.push(is_active === 'true');
+      conditions.push(`is_active = $${params.length}`);
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    query += ' ORDER BY created_at DESC';
+    
+    const result = await pool.query(query, params);
+    res.json(result.rows.map(u => ({
+      id: u.id,
+      username: u.username,
+      name: u.name,
+      firstName: u.first_name,
+      lastName: u.last_name,
+      email: u.email,
+      phone: u.phone,
+      avatar: u.avatar,
+      role: u.role,
+      isOwner: u.is_owner,
+      branchId: u.branch_id,
+      isActive: u.is_active,
+      lastLogin: u.last_login,
+      createdAt: u.created_at
+    })));
+  } catch (error) {
+    console.error('Error fetching admin users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
 

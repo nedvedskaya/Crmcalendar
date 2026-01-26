@@ -468,4 +468,62 @@ export const api = {
     });
     return handleResponse<any>(response);
   },
+
+  async getAdminUsers(params?: { search?: string; role?: string; is_active?: string }) {
+    let url = `${API_BASE}/admin/users`;
+    const queryParams: string[] = [];
+    if (params?.search) queryParams.push(`search=${encodeURIComponent(params.search)}`);
+    if (params?.role) queryParams.push(`role=${params.role}`);
+    if (params?.is_active !== undefined) queryParams.push(`is_active=${params.is_active}`);
+    if (queryParams.length > 0) url += '?' + queryParams.join('&');
+    const response = await fetch(url, { headers: getAuthHeaders() });
+    return handleResponse<any[]>(response);
+  },
+
+  async blockUser(id: number, isActive: boolean) {
+    const response = await fetch(`${API_BASE}/admin/users/${id}/block`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ is_active: isActive }),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async createAdminUser(user: { username: string; password: string; name: string; email?: string; role: string; branch_id?: number }) {
+    const response = await fetch(`${API_BASE}/admin/users`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(user),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async updateAdminUser(id: number, user: any) {
+    const response = await fetch(`${API_BASE}/admin/users/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(user),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async deleteAdminUser(id: number) {
+    const response = await fetch(`${API_BASE}/admin/users/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<any>(response);
+  },
+
+  async getActivityLogs(params?: { limit?: number; offset?: number; user_id?: number; action?: string }) {
+    let url = `${API_BASE}/activity-logs`;
+    const queryParams: string[] = [];
+    if (params?.limit) queryParams.push(`limit=${params.limit}`);
+    if (params?.offset) queryParams.push(`offset=${params.offset}`);
+    if (params?.user_id) queryParams.push(`user_id=${params.user_id}`);
+    if (params?.action) queryParams.push(`action=${params.action}`);
+    if (queryParams.length > 0) url += '?' + queryParams.join('&');
+    const response = await fetch(url, { headers: getAuthHeaders() });
+    return handleResponse<any[]>(response);
+  },
 };
