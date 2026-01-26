@@ -37,7 +37,7 @@ import {
   getInitialClientState, getInitialCalendarEntryState 
 } from '@/utils/initialStates';
 import { Header } from '@/app/components/ui/Header';
-import { isAuthenticated, saveUserAuth, getUserAuth } from '@/utils/auth';
+import { isAuthenticated, saveUserAuth, getUserAuth, logout } from '@/utils/auth';
 import { hasPermission, canAccessTab, getAvailableTabs, isAdmin } from '@/utils/permissions';
 import { api } from '@/utils/api';
 
@@ -1636,14 +1636,15 @@ const App = () => {
   }, [tags, isLoading]);
 
   // Обработка входа
-  const handleLogin = (userData: { id: number; name: string; email: string; role: string; isOwner: boolean }) => {
-    saveUserAuth({ name: userData.name, role: userData.role, email: userData.email, id: userData.id, isOwner: userData.isOwner });
+  const handleLogin = (userData: { id: number; name: string; email: string; role: string; isOwner: boolean }, token?: string) => {
+    saveUserAuth({ name: userData.name, role: userData.role, email: userData.email, id: userData.id, isOwner: userData.isOwner }, token);
     setUser(getUserAuth());
     setIsAuth(true);
   };
 
   // Обработка выхода
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logout();
     setIsAuth(false);
     setUser(null);
   };

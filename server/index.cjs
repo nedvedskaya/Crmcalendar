@@ -61,6 +61,17 @@ function getRemainingBlockTime(ip) {
   return Math.max(0, Math.ceil((record.blockedUntil - Date.now()) / 1000));
 }
 
+// Генерация токена сессии
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// Время жизни сессии (24 часа)
+const SESSION_DURATION = 24 * 60 * 60 * 1000;
+
+// Время жизни токена сброса пароля (1 час)
+const RESET_TOKEN_DURATION = 60 * 60 * 1000;
+
 // Функции хеширования паролей
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -134,6 +145,29 @@ async function initDatabase() {
         is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Сессии пользователей
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ${SCHEMA}.sessions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Токены сброса пароля
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ${SCHEMA}.password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        token_hash VARCHAR(255) NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -567,6 +601,19 @@ app.post('/api/login', async (req, res) => {
     // Успешный вход - сбрасываем счётчик попыток
     resetAttempts(clientIP);
     
+    // Создаём токен сессии
+    const sessionToken = generateToken();
+    const expiresAt = new Date(Date.now() + SESSION_DURATION);
+    
+    // Удаляем старые сессии пользователя
+    await pool.query(`DELETE FROM ${SCHEMA}.sessions WHERE user_id = $1`, [user.id]);
+    
+    // Сохраняем новую сессию
+    await pool.query(
+      `INSERT INTO ${SCHEMA}.sessions (user_id, token, expires_at) VALUES ($1, $2, $3)`,
+      [user.id, sessionToken, expiresAt]
+    );
+    
     // Обновляем время последнего входа
     await pool.query(
       `UPDATE ${SCHEMA}.users SET last_login = CURRENT_TIMESTAMP WHERE id = $1`,
@@ -575,6 +622,7 @@ app.post('/api/login', async (req, res) => {
     
     res.json({
       success: true,
+      token: sessionToken,
       user: {
         id: user.id,
         email: user.email,
@@ -587,6 +635,190 @@ app.post('/api/login', async (req, res) => {
   } catch (error) {
     console.error('Error logging in:', error);
     res.status(500).json({ error: 'Ошибка при входе' });
+  }
+});
+
+// Middleware для проверки авторизации
+const authMiddleware = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Требуется авторизация' });
+    }
+    
+    const token = authHeader.substring(7);
+    
+    // Проверяем токен в базе
+    const result = await pool.query(
+      `SELECT s.*, u.id as user_id, u.role, u.is_owner, u.is_active 
+       FROM ${SCHEMA}.sessions s 
+       JOIN ${SCHEMA}.users u ON s.user_id = u.id 
+       WHERE s.token = $1 AND s.expires_at > NOW()`,
+      [token]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Сессия истекла или недействительна' });
+    }
+    
+    const session = result.rows[0];
+    
+    if (!session.is_active) {
+      return res.status(401).json({ error: 'Аккаунт деактивирован' });
+    }
+    
+    // Добавляем данные пользователя в request
+    req.user = {
+      id: session.user_id,
+      role: session.role,
+      isOwner: session.is_owner
+    };
+    
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    res.status(500).json({ error: 'Ошибка авторизации' });
+  }
+};
+
+// Middleware для проверки роли владельца
+const ownerOnly = (req, res, next) => {
+  if (!req.user?.isOwner && req.user?.role !== 'owner') {
+    return res.status(403).json({ error: 'Доступ запрещён. Требуются права владельца.' });
+  }
+  next();
+};
+
+// Middleware для проверки роли менеджера или выше
+const managerOrOwner = (req, res, next) => {
+  if (!['owner', 'manager'].includes(req.user?.role)) {
+    return res.status(403).json({ error: 'Доступ запрещён. Требуются права менеджера.' });
+  }
+  next();
+};
+
+// Выход из системы
+app.post('/api/logout', authMiddleware, async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader.substring(7);
+    await pool.query(`DELETE FROM ${SCHEMA}.sessions WHERE token = $1`, [token]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error logging out:', error);
+    res.status(500).json({ error: 'Ошибка при выходе' });
+  }
+});
+
+// Запрос на сброс пароля
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email обязателен' });
+    }
+    
+    // Ищем пользователя
+    const userResult = await pool.query(
+      `SELECT id, email FROM ${SCHEMA}.users WHERE email = $1`,
+      [email.toLowerCase().trim()]
+    );
+    
+    // Не сообщаем, существует ли email (защита от перебора)
+    if (userResult.rows.length === 0) {
+      return res.json({ success: true, message: 'Если email существует, инструкции отправлены' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Генерируем токен
+    const resetToken = generateToken();
+    const tokenHash = await hashPassword(resetToken);
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_DURATION);
+    
+    // Удаляем старые токены пользователя
+    await pool.query(
+      `DELETE FROM ${SCHEMA}.password_reset_tokens WHERE user_id = $1`,
+      [user.id]
+    );
+    
+    // Сохраняем новый токен
+    await pool.query(
+      `INSERT INTO ${SCHEMA}.password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+      [user.id, tokenHash, expiresAt]
+    );
+    
+    res.json({ 
+      success: true, 
+      message: 'Если email существует, инструкции отправлены'
+    });
+  } catch (error) {
+    console.error('Error requesting password reset:', error);
+    res.status(500).json({ error: 'Ошибка при запросе сброса пароля' });
+  }
+});
+
+// Сброс пароля с токеном
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Токен и новый пароль обязательны' });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Пароль должен быть не менее 6 символов' });
+    }
+    
+    // Ищем все неиспользованные токены
+    const tokensResult = await pool.query(
+      `SELECT * FROM ${SCHEMA}.password_reset_tokens 
+       WHERE used = false AND expires_at > NOW()`
+    );
+    
+    // Проверяем каждый токен (хеши нужно сравнивать)
+    let validToken = null;
+    for (const t of tokensResult.rows) {
+      try {
+        const isValid = await comparePasswords(token, t.token_hash);
+        if (isValid) {
+          validToken = t;
+          break;
+        }
+      } catch (e) {}
+    }
+    
+    if (!validToken) {
+      return res.status(400).json({ error: 'Токен недействителен или истёк' });
+    }
+    
+    // Хешируем новый пароль
+    const newPasswordHash = await hashPassword(newPassword);
+    
+    // Обновляем пароль
+    await pool.query(
+      `UPDATE ${SCHEMA}.users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      [newPasswordHash, validToken.user_id]
+    );
+    
+    // Помечаем токен как использованный
+    await pool.query(
+      `UPDATE ${SCHEMA}.password_reset_tokens SET used = true WHERE id = $1`,
+      [validToken.id]
+    );
+    
+    // Удаляем все сессии пользователя (разлогиниваем везде)
+    await pool.query(
+      `DELETE FROM ${SCHEMA}.sessions WHERE user_id = $1`,
+      [validToken.user_id]
+    );
+    
+    res.json({ success: true, message: 'Пароль успешно изменён' });
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    res.status(500).json({ error: 'Ошибка при сбросе пароля' });
   }
 });
 
@@ -619,7 +851,7 @@ app.get('/api/user/:id', async (req, res) => {
   }
 });
 
-app.get('/api/clients', async (req, res) => {
+app.get('/api/clients', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM ${SCHEMA}.clients ORDER BY created_at DESC`);
     res.json(result.rows);
@@ -629,7 +861,7 @@ app.get('/api/clients', async (req, res) => {
   }
 });
 
-app.post('/api/clients', async (req, res) => {
+app.post('/api/clients', authMiddleware, async (req, res) => {
   try {
     const { name, phone, email, notes, branch_id, source } = req.body;
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -646,7 +878,7 @@ app.post('/api/clients', async (req, res) => {
   }
 });
 
-app.put('/api/clients/:id', async (req, res) => {
+app.put('/api/clients/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     if (!id || isNaN(parseInt(id))) {
@@ -670,7 +902,7 @@ app.put('/api/clients/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/clients/:id', async (req, res) => {
+app.delete('/api/clients/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.clients WHERE id = $1`, [id]);
@@ -681,7 +913,7 @@ app.delete('/api/clients/:id', async (req, res) => {
   }
 });
 
-app.get('/api/services', async (req, res) => {
+app.get('/api/services', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM ${SCHEMA}.services ORDER BY name`);
     res.json(result.rows);
@@ -691,7 +923,7 @@ app.get('/api/services', async (req, res) => {
   }
 });
 
-app.post('/api/services', async (req, res) => {
+app.post('/api/services', authMiddleware, async (req, res) => {
   try {
     const { name, price, duration, description } = req.body;
     const result = await pool.query(
@@ -705,7 +937,7 @@ app.post('/api/services', async (req, res) => {
   }
 });
 
-app.put('/api/services/:id', async (req, res) => {
+app.put('/api/services/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, price, duration, description } = req.body;
@@ -720,7 +952,7 @@ app.put('/api/services/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/services/:id', async (req, res) => {
+app.delete('/api/services/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.services WHERE id = $1`, [id]);
@@ -731,7 +963,7 @@ app.delete('/api/services/:id', async (req, res) => {
   }
 });
 
-app.get('/api/bookings', async (req, res) => {
+app.get('/api/bookings', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT b.*, c.name as client_name, s.name as service_name, u.name as master_name
@@ -748,7 +980,7 @@ app.get('/api/bookings', async (req, res) => {
   }
 });
 
-app.post('/api/bookings', async (req, res) => {
+app.post('/api/bookings', authMiddleware, async (req, res) => {
   try {
     const { client_id, service_id, master_id, date, time, status, notes } = req.body;
     const result = await pool.query(
@@ -762,7 +994,7 @@ app.post('/api/bookings', async (req, res) => {
   }
 });
 
-app.put('/api/bookings/:id', async (req, res) => {
+app.put('/api/bookings/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { client_id, service_id, master_id, date, time, status, notes } = req.body;
@@ -777,7 +1009,7 @@ app.put('/api/bookings/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/bookings/:id', async (req, res) => {
+app.delete('/api/bookings/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.bookings WHERE id = $1`, [id]);
@@ -788,7 +1020,7 @@ app.delete('/api/bookings/:id', async (req, res) => {
   }
 });
 
-app.get('/api/transactions', async (req, res) => {
+app.get('/api/transactions', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM ${SCHEMA}.transactions ORDER BY date DESC, created_at DESC`);
     res.json(result.rows);
@@ -798,7 +1030,7 @@ app.get('/api/transactions', async (req, res) => {
   }
 });
 
-app.post('/api/transactions', async (req, res) => {
+app.post('/api/transactions', authMiddleware, async (req, res) => {
   try {
     const { type, amount, category, description, date, booking_id } = req.body;
     const result = await pool.query(
@@ -812,7 +1044,7 @@ app.post('/api/transactions', async (req, res) => {
   }
 });
 
-app.delete('/api/transactions/:id', async (req, res) => {
+app.delete('/api/transactions/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.transactions WHERE id = $1`, [id]);
@@ -823,7 +1055,7 @@ app.delete('/api/transactions/:id', async (req, res) => {
   }
 });
 
-app.get('/api/tasks', async (req, res) => {
+app.get('/api/tasks', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT t.*, c.name as client_name, u.name as assigned_to_name
@@ -839,7 +1071,7 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
-app.post('/api/tasks', async (req, res) => {
+app.post('/api/tasks', authMiddleware, async (req, res) => {
   try {
     const { title, description, status, priority, due_date, client_id, assigned_to } = req.body;
     const result = await pool.query(
@@ -853,7 +1085,7 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
-app.put('/api/tasks/:id', async (req, res) => {
+app.put('/api/tasks/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, status, priority, due_date, client_id, assigned_to } = req.body;
@@ -868,7 +1100,7 @@ app.put('/api/tasks/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/tasks/:id', async (req, res) => {
+app.delete('/api/tasks/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.tasks WHERE id = $1`, [id]);
@@ -879,7 +1111,7 @@ app.delete('/api/tasks/:id', async (req, res) => {
   }
 });
 
-app.get('/api/data/:key', async (req, res) => {
+app.get('/api/data/:key', authMiddleware, async (req, res) => {
   try {
     const { key } = req.params;
     const result = await pool.query(`SELECT value FROM ${SCHEMA}.app_data WHERE key = $1`, [key]);
@@ -890,7 +1122,7 @@ app.get('/api/data/:key', async (req, res) => {
   }
 });
 
-app.post('/api/data/:key', async (req, res) => {
+app.post('/api/data/:key', authMiddleware, async (req, res) => {
   try {
     const { key } = req.params;
     const { value } = req.body;
@@ -906,7 +1138,7 @@ app.post('/api/data/:key', async (req, res) => {
   }
 });
 
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`SELECT id, username, name, email, phone, role, is_owner, branch_id, is_active, created_at FROM ${SCHEMA}.users ORDER BY name`);
     res.json(result.rows);
@@ -917,7 +1149,7 @@ app.get('/api/users', async (req, res) => {
 });
 
 // === BRANCHES API ===
-app.get('/api/branches', async (req, res) => {
+app.get('/api/branches', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM ${SCHEMA}.branches ORDER BY name`);
     res.json(result.rows);
@@ -927,7 +1159,7 @@ app.get('/api/branches', async (req, res) => {
   }
 });
 
-app.post('/api/branches', async (req, res) => {
+app.post('/api/branches', authMiddleware, managerOrOwner, async (req, res) => {
   try {
     const { name, address, phone, email } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
@@ -942,7 +1174,7 @@ app.post('/api/branches', async (req, res) => {
   }
 });
 
-app.put('/api/branches/:id', async (req, res) => {
+app.put('/api/branches/:id', authMiddleware, managerOrOwner, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, address, phone, email, is_active } = req.body;
@@ -957,7 +1189,7 @@ app.put('/api/branches/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/branches/:id', async (req, res) => {
+app.delete('/api/branches/:id', authMiddleware, ownerOnly, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.branches WHERE id = $1`, [id]);
@@ -969,7 +1201,7 @@ app.delete('/api/branches/:id', async (req, res) => {
 });
 
 // === VEHICLES API ===
-app.get('/api/vehicles', async (req, res) => {
+app.get('/api/vehicles', authMiddleware, async (req, res) => {
   try {
     const { client_id } = req.query;
     let query = `SELECT v.*, c.name as client_name FROM ${SCHEMA}.vehicles v LEFT JOIN ${SCHEMA}.clients c ON v.client_id = c.id`;
@@ -987,7 +1219,7 @@ app.get('/api/vehicles', async (req, res) => {
   }
 });
 
-app.post('/api/vehicles', async (req, res) => {
+app.post('/api/vehicles', authMiddleware, async (req, res) => {
   try {
     const { client_id, brand, model, year, vin, license_plate, color, mileage, notes } = req.body;
     if (!client_id || !brand) return res.status(400).json({ error: 'Client ID and brand are required' });
@@ -1002,7 +1234,7 @@ app.post('/api/vehicles', async (req, res) => {
   }
 });
 
-app.put('/api/vehicles/:id', async (req, res) => {
+app.put('/api/vehicles/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { brand, model, year, vin, license_plate, color, mileage, notes } = req.body;
@@ -1017,7 +1249,7 @@ app.put('/api/vehicles/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/vehicles/:id', async (req, res) => {
+app.delete('/api/vehicles/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.vehicles WHERE id = $1`, [id]);
@@ -1029,7 +1261,7 @@ app.delete('/api/vehicles/:id', async (req, res) => {
 });
 
 // === CATEGORIES API ===
-app.get('/api/categories', async (req, res) => {
+app.get('/api/categories', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM ${SCHEMA}.categories ORDER BY name`);
     res.json(result.rows);
@@ -1039,7 +1271,7 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
-app.post('/api/categories', async (req, res) => {
+app.post('/api/categories', authMiddleware, async (req, res) => {
   try {
     const { name, type, color, icon, branch_id } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
@@ -1054,7 +1286,7 @@ app.post('/api/categories', async (req, res) => {
   }
 });
 
-app.put('/api/categories/:id', async (req, res) => {
+app.put('/api/categories/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, type, color, icon } = req.body;
@@ -1069,7 +1301,7 @@ app.put('/api/categories/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/categories/:id', async (req, res) => {
+app.delete('/api/categories/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.categories WHERE id = $1`, [id]);
@@ -1081,7 +1313,7 @@ app.delete('/api/categories/:id', async (req, res) => {
 });
 
 // === TAGS API ===
-app.get('/api/tags', async (req, res) => {
+app.get('/api/tags', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM ${SCHEMA}.tags ORDER BY name`);
     res.json(result.rows);
@@ -1091,7 +1323,7 @@ app.get('/api/tags', async (req, res) => {
   }
 });
 
-app.post('/api/tags', async (req, res) => {
+app.post('/api/tags', authMiddleware, async (req, res) => {
   try {
     const { name, color, branch_id } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
@@ -1106,7 +1338,7 @@ app.post('/api/tags', async (req, res) => {
   }
 });
 
-app.delete('/api/tags/:id', async (req, res) => {
+app.delete('/api/tags/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.tags WHERE id = $1`, [id]);
@@ -1118,7 +1350,7 @@ app.delete('/api/tags/:id', async (req, res) => {
 });
 
 // === ENTITY TAGS API ===
-app.get('/api/entity-tags', async (req, res) => {
+app.get('/api/entity-tags', authMiddleware, async (req, res) => {
   try {
     const { entity_type, entity_id } = req.query;
     let query = `SELECT et.*, t.name as tag_name, t.color FROM ${SCHEMA}.entity_tags et LEFT JOIN ${SCHEMA}.tags t ON et.tag_id = t.id`;
@@ -1144,7 +1376,7 @@ app.get('/api/entity-tags', async (req, res) => {
   }
 });
 
-app.post('/api/entity-tags', async (req, res) => {
+app.post('/api/entity-tags', authMiddleware, async (req, res) => {
   try {
     const { tag_id, entity_type, entity_id } = req.body;
     if (!tag_id || !entity_type || !entity_id) return res.status(400).json({ error: 'Tag ID, entity type and entity ID are required' });
@@ -1159,7 +1391,7 @@ app.post('/api/entity-tags', async (req, res) => {
   }
 });
 
-app.delete('/api/entity-tags/:id', async (req, res) => {
+app.delete('/api/entity-tags/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.entity_tags WHERE id = $1`, [id]);
@@ -1171,7 +1403,7 @@ app.delete('/api/entity-tags/:id', async (req, res) => {
 });
 
 // === CLIENT RECORDS API ===
-app.get('/api/client-records', async (req, res) => {
+app.get('/api/client-records', authMiddleware, async (req, res) => {
   try {
     const { client_id } = req.query;
     let query = `SELECT cr.*, c.name as client_name, v.brand, v.model, v.license_plate, u.name as master_name
@@ -1193,7 +1425,7 @@ app.get('/api/client-records', async (req, res) => {
   }
 });
 
-app.post('/api/client-records', async (req, res) => {
+app.post('/api/client-records', authMiddleware, async (req, res) => {
   try {
     const { client_id, vehicle_id, booking_id, service_name, description, amount, date, time, master_id, branch_id, is_paid, is_completed } = req.body;
     if (!client_id || !service_name || !date) return res.status(400).json({ error: 'Client ID, service name and date are required' });
@@ -1208,7 +1440,7 @@ app.post('/api/client-records', async (req, res) => {
   }
 });
 
-app.put('/api/client-records/:id', async (req, res) => {
+app.put('/api/client-records/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { service_name, description, amount, date, time, is_paid, is_completed } = req.body;
@@ -1223,7 +1455,7 @@ app.put('/api/client-records/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/client-records/:id', async (req, res) => {
+app.delete('/api/client-records/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.client_records WHERE id = $1`, [id]);
@@ -1235,7 +1467,7 @@ app.delete('/api/client-records/:id', async (req, res) => {
 });
 
 // === SUBSCRIPTIONS API ===
-app.get('/api/subscriptions', async (req, res) => {
+app.get('/api/subscriptions', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM ${SCHEMA}.subscriptions WHERE is_active = true ORDER BY price`);
     res.json(result.rows);
@@ -1245,7 +1477,7 @@ app.get('/api/subscriptions', async (req, res) => {
   }
 });
 
-app.post('/api/subscriptions', async (req, res) => {
+app.post('/api/subscriptions', authMiddleware, ownerOnly, async (req, res) => {
   try {
     const { name, description, price, period_days, max_users, max_clients, max_branches, features } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
@@ -1261,7 +1493,7 @@ app.post('/api/subscriptions', async (req, res) => {
 });
 
 // === USER SUBSCRIPTIONS API ===
-app.get('/api/user-subscriptions', async (req, res) => {
+app.get('/api/user-subscriptions', authMiddleware, async (req, res) => {
   try {
     const { user_id } = req.query;
     let query = `SELECT us.*, s.name as subscription_name, s.price, s.features, u.name as user_name
@@ -1282,7 +1514,7 @@ app.get('/api/user-subscriptions', async (req, res) => {
   }
 });
 
-app.post('/api/user-subscriptions', async (req, res) => {
+app.post('/api/user-subscriptions', authMiddleware, async (req, res) => {
   try {
     const { user_id, subscription_id, start_date, end_date, auto_renew } = req.body;
     if (!user_id || !subscription_id || !end_date) return res.status(400).json({ error: 'User ID, subscription ID and end date are required' });
@@ -1297,7 +1529,7 @@ app.post('/api/user-subscriptions', async (req, res) => {
   }
 });
 
-app.put('/api/user-subscriptions/:id', async (req, res) => {
+app.put('/api/user-subscriptions/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, end_date, auto_renew } = req.body;
@@ -1313,7 +1545,7 @@ app.put('/api/user-subscriptions/:id', async (req, res) => {
 });
 
 // === PAYMENTS API ===
-app.get('/api/payments', async (req, res) => {
+app.get('/api/payments', authMiddleware, async (req, res) => {
   try {
     const { user_id } = req.query;
     let query = `SELECT p.*, u.name as user_name, us.subscription_id, s.name as subscription_name
@@ -1335,7 +1567,7 @@ app.get('/api/payments', async (req, res) => {
   }
 });
 
-app.post('/api/payments', async (req, res) => {
+app.post('/api/payments', authMiddleware, async (req, res) => {
   try {
     const { user_subscription_id, user_id, amount, currency, payment_method, payment_provider, external_payment_id, status } = req.body;
     if (!user_id || !amount) return res.status(400).json({ error: 'User ID and amount are required' });
@@ -1350,7 +1582,7 @@ app.post('/api/payments', async (req, res) => {
   }
 });
 
-app.put('/api/payments/:id', async (req, res) => {
+app.put('/api/payments/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, paid_at } = req.body;

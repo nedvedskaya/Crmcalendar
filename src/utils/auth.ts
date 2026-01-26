@@ -10,11 +10,12 @@ export interface UserData {
 }
 
 const AUTH_KEY = 'crm_user_auth';
+const TOKEN_KEY = 'crm_session_token';
 
 /**
- * Сохранить данные пользователя в localStorage
+ * Сохранить данные пользователя и токен
  */
-export const saveUserAuth = (userData: Omit<UserData, 'loginDate'>): void => {
+export const saveUserAuth = (userData: Omit<UserData, 'loginDate'>, token?: string): void => {
   const authData: UserData = {
     ...userData,
     loginDate: new Date().toISOString()
@@ -22,8 +23,23 @@ export const saveUserAuth = (userData: Omit<UserData, 'loginDate'>): void => {
   
   try {
     localStorage.setItem(AUTH_KEY, JSON.stringify(authData));
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    }
   } catch (error) {
     console.error('Error saving user auth:', error);
+  }
+};
+
+/**
+ * Получить токен сессии
+ */
+export const getSessionToken = (): string | null => {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch (error) {
+    console.error('Error getting session token:', error);
+    return null;
   }
 };
 
@@ -46,17 +62,29 @@ export const getUserAuth = (): UserData | null => {
  * Проверить, авторизован ли пользователь
  */
 export const isAuthenticated = (): boolean => {
-  return getUserAuth() !== null;
+  return getUserAuth() !== null && getSessionToken() !== null;
 };
 
 /**
  * Выйти из системы
  */
-export const logout = (): void => {
+export const logout = async (): Promise<void> => {
   try {
+    const token = getSessionToken();
+    if (token) {
+      await fetch('/api/logout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }).catch(() => {});
+    }
     localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem(TOKEN_KEY);
   } catch (error) {
     console.error('Error logging out:', error);
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem(TOKEN_KEY);
   }
 };
 

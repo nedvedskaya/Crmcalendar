@@ -139,10 +139,28 @@ The application uses secure email/password authentication:
 
 ### Auth API Endpoints:
 - `POST /api/register` - Register new user (email, password, name)
-- `POST /api/login` - Login with email/password
+- `POST /api/login` - Login with email/password, returns session token
+- `POST /api/logout` - Invalidate session (requires auth)
+- `POST /api/forgot-password` - Request password reset token
+- `POST /api/reset-password` - Reset password with token
 - `GET /api/user/:id` - Get user by ID
 
+### Session Management:
+- Sessions stored in `sessions` table with 24hr expiration
+- Bearer token authentication: `Authorization: Bearer <token>`
+- Password reset tokens stored hashed with 1hr expiration
+- Frontend automatically handles session expiry (redirects to login)
+
+### Role Middleware:
+- `authMiddleware` - Validates session token on protected routes
+- `ownerOnly` - Restricts access to owner role
+- `managerOrOwner` - Restricts access to manager or owner roles
+
 ## Recent Changes
+- 2026-01-26: Added session-based authentication with tokens (24hr expiry)
+- 2026-01-26: Added auth middleware for protected API routes
+- 2026-01-26: Added password reset flow (forgot-password, reset-password endpoints)
+- 2026-01-26: Added role-based access control middleware (owner, manager)
 - 2026-01-26: Added secure login/registration with password hashing (scrypt)
 - 2026-01-25: Extended database schema with subscription/payment tables, vehicles, client records, categories, tags, branches
 - 2026-01-25: Integrated frontend with PostgreSQL API for persistent data storage

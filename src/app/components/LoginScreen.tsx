@@ -15,7 +15,7 @@ const EyeOffIcon = () => (
 );
 
 interface LoginScreenProps {
-  onLogin: (userData: { id: number; name: string; email: string; role: string; isOwner: boolean }) => void;
+  onLogin: (userData: { id: number; name: string; email: string; role: string; isOwner: boolean }, token?: string) => void;
 }
 
 export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
@@ -93,7 +93,7 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
           email: data.user.email,
           role: data.user.role,
           isOwner: data.user.isOwner
-        });
+        }, data.token);
       }
     } catch (err) {
       setError('Ошибка соединения с сервером');
