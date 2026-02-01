@@ -89,6 +89,9 @@ function generateToken() {
 // Время жизни сессии (24 часа)
 const SESSION_DURATION = 24 * 60 * 60 * 1000;
 
+// Время жизни расширенной сессии "Запомнить меня" (30 дней)
+const EXTENDED_SESSION_DURATION = 30 * 24 * 60 * 60 * 1000;
+
 // Время жизни токена сброса пароля (1 час)
 const RESET_TOKEN_DURATION = 60 * 60 * 1000;
 
@@ -732,7 +735,7 @@ app.post('/api/login', async (req, res) => {
       });
     }
     
-    const { email, password } = req.body;
+    const { email, password, rememberMe } = req.body;
     
     if (!email || !password) {
       return res.status(400).json({ error: 'Email и пароль обязательны' });
@@ -789,7 +792,8 @@ app.post('/api/login', async (req, res) => {
     
     // Создаём токен сессии
     const sessionToken = generateToken();
-    const expiresAt = new Date(Date.now() + SESSION_DURATION);
+    const sessionDuration = rememberMe ? EXTENDED_SESSION_DURATION : SESSION_DURATION;
+    const expiresAt = new Date(Date.now() + sessionDuration);
     
     // Удаляем старые сессии пользователя
     await pool.query(`DELETE FROM ${SCHEMA}.sessions WHERE user_id = $1`, [user.id]);

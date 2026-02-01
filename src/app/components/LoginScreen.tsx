@@ -25,6 +25,7 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -59,7 +60,7 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, rememberMe })
       });
       
       const data = await response.json();
@@ -160,6 +161,16 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
                 {error}
               </p>
             )}
+
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500 cursor-pointer"
+              />
+              <span className="text-sm text-zinc-600">Запомнить меня</span>
+            </label>
           </div>
 
           <button
