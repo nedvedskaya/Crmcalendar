@@ -439,7 +439,7 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
                 <div className="space-y-3">
                     <input type="text" name="name" value={String(formData.name || '')} onChange={handleChange} placeholder="Имя Фамилия" className="w-full bg-white border border-zinc-300 rounded-xl p-4 text-lg font-bold outline-none focus:border-black" disabled={readOnlyIdentity} />
                     <div className="flex gap-3">
-                        <input type="tel" name="phone" value={String(formData.phone || '')} onChange={handleChange} placeholder="+7" className="w-full bg-white border border-zinc-300 rounded-xl p-4 font-bold outline-none shadow-sm" disabled={readOnlyIdentity} />
+                        <input type="tel" name="phone" value={String(formData.phone || '')} onChange={handleChange} placeholder="Телефон" className="w-full bg-white border border-zinc-300 rounded-xl p-4 font-bold outline-none shadow-sm" disabled={readOnlyIdentity} />
                         <input type="text" name="birthDate" value={String(formData.birthDate || '')} onChange={handleChange} placeholder="ДД.ММ.ГГГГ" className="w-full bg-white border border-zinc-300 rounded-xl p-4 font-bold outline-none shadow-sm" />
                     </div>
                     <AutocompleteInput name="city" value={formData.city} onChange={handleChange} options={CITIES_DATABASE} placeholder="Город" className="w-full bg-white border border-zinc-300 rounded-xl p-4 font-bold outline-none shadow-sm" />
