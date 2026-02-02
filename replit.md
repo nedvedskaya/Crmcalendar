@@ -34,12 +34,14 @@ The project uses an external PostgreSQL database with a dedicated schema `ugt_tu
 - `tasks` - Task management
 - `app_data` - Generic key-value storage
 
-### Required Environment Variables:
-- `POSTGRESQL_HOST` - Database host
-- `POSTGRESQL_PORT` - Database port
-- `POSTGRESQL_USER` - Database user
-- `POSTGRESQL_PASSWORD` - Database password
-- `POSTGRESQL_DBNAME` - Database name
+### Required Environment Variables (Timeweb Cloud):
+- `DB_HOST` - Database host (e.g., xxx.twc1.net)
+- `DB_PORT` - Database port (default: 5432)
+- `DB_USER` - Database user
+- `DB_PASSWORD` - Database password
+- `DB_NAME` - Database name
+
+Legacy variables (PGHOST, PGUSER, etc.) are also supported as fallbacks.
 
 ## Development
 The project uses two separate Replit workflows:
