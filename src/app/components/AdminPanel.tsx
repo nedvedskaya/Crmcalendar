@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, Activity, UserPlus, Search, Shield, ShieldOff, Clock, ArrowLeft, X } from 'lucide-react';
 import { api } from '@/utils/api';
 import { getRoleName } from '@/utils/permissions';
+import { formatDateTime } from '@/utils/helpers';
 
 interface User {
   id: number;
@@ -119,15 +120,6 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const getActionLabel = (action: string) => {
     const labels: Record<string, string> = {
@@ -279,7 +271,7 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-zinc-500 text-sm">
-                            {user.lastLogin ? formatDate(user.lastLogin) : 'Никогда'}
+                            {user.lastLogin ? formatDateTime(user.lastLogin) : 'Никогда'}
                           </td>
                           <td className="px-6 py-4 text-right">
                             {!user.isOwner && (
@@ -372,7 +364,7 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2 text-sm text-zinc-600">
                               <Clock size={14} className="text-zinc-400" />
-                              {formatDate(log.createdAt)}
+                              {formatDateTime(log.createdAt)}
                             </div>
                           </td>
                           <td className="px-6 py-4 font-medium text-zinc-900">{log.userName || 'Система'}</td>

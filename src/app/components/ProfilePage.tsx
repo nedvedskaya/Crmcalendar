@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/utils/api';
+import { formatDate } from '@/utils/helpers';
 
 interface ProfileData {
   id: number;
@@ -62,13 +63,6 @@ export const ProfilePage = ({ onBack }: ProfilePageProps) => {
     return roles[role] || role;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
 
   if (isLoading) {
     return (
