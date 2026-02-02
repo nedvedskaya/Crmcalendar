@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const path = require('path');
 const { Pool } = require('pg');
 const crypto = require('crypto');
@@ -215,12 +216,23 @@ async function comparePasswords(supplied, stored) {
 const app = express();
 const PORT = process.env.NODE_ENV === 'production' ? 5000 : 3001;
 
+app.use(compression({ level: 6, threshold: 1024 }));
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(sanitizeMiddleware);
 
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../dist')));
+  app.use(express.static(path.join(__dirname, '../dist'), {
+    maxAge: '1d',
+    etag: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache');
+      } else if (filePath.match(/\.(js|css|woff2?)$/)) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+    }
+  }));
 }
 
 console.log('Starting UGT Tuners backend server...');
