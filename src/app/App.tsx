@@ -403,11 +403,49 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
   const [recordInput, setRecordInput] = useState(getInitialRecordState());
   const [isRecordFormOpen, setIsRecordFormOpen] = useState(false);
   const [availableModels, setAvailableModels] = useState([]);
+  const [isSaved, setIsSaved] = useState(false);
+  const saveTimeoutRef = useRef(null);
+  const formDataRef = useRef(formData);
+  const newTasksRef = useRef(newTasks);
+  const newRecordsRef = useRef(newRecords);
+
+  // Обновляем refs при изменении данных
+  useEffect(() => { formDataRef.current = formData; }, [formData]);
+  useEffect(() => { newTasksRef.current = newTasks; }, [newTasks]);
+  useEffect(() => { newRecordsRef.current = newRecords; }, [newRecords]);
 
   useEffect(() => {
     const models = formData.carBrand && CAR_DATABASE[formData.carBrand] ? CAR_DATABASE[formData.carBrand] : [];
     setAvailableModels(models);
   }, [formData.carBrand]);
+  
+  // Автосохранение с debounce (2 секунды после последнего изменения)
+  useEffect(() => {
+    if (!formData.name || formData.name.trim() === '') return;
+    if (isSaved) return;
+    
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    
+    saveTimeoutRef.current = setTimeout(() => {
+      if (formDataRef.current.name && formDataRef.current.name.trim() !== '') {
+        onSave(formDataRef.current, newTasksRef.current, newRecordsRef.current);
+        setIsSaved(true);
+      }
+    }, 2000);
+    
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [formData.name, formData.phone, formData.carBrand, formData.carModel, formData.city, formData.comment, formData.branch, formData.birthDate, newTasks.length, newRecords.length]);
+  
+  // Сохранение при закрытии формы
+  const handleClose = () => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    if (formData.name && formData.name.trim() !== '' && !isSaved) {
+      onSave(formData, newTasks, newRecords);
+    }
+    onCancel();
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -457,16 +495,28 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
   return (
     <div className="fixed inset-0 z-[200] bg-zinc-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5" style={{height: '100dvh', minHeight: '-webkit-fill-available'}}>
         <div className="px-6 pt-safe pb-4 bg-white border-b border-zinc-200 flex items-center justify-between shrink-0" style={{paddingTop: 'max(env(safe-area-inset-top, 12px), 48px)'}}>
-            <Button variant="ghost" size="md" onClick={onCancel} className="text-base">Отмена</Button>
+            <Button variant="ghost" size="md" onClick={handleClose} className="text-base">Назад</Button>
             <span className="text-xl font-black">{String(title)}</span>
-            <Button 
-                variant="ghost" 
-                size="md" 
-                onClick={() => formData.name && onSave(formData, newTasks, newRecords)}
-                className="text-base font-bold !text-orange-500"
-            >
-                Готово
-            </Button>
+            {isSaved ? (
+                <span className="text-base font-bold text-green-500 flex items-center gap-1">
+                    <Check size={16} /> Сохранено
+                </span>
+            ) : (
+                <Button 
+                    variant="ghost" 
+                    size="md" 
+                    onClick={() => {
+                        if (formData.name) {
+                            onSave(formData, newTasks, newRecords);
+                            setIsSaved(true);
+                        }
+                    }}
+                    className="text-base font-bold !text-orange-500"
+                    disabled={!formData.name}
+                >
+                    Сохранить
+                </Button>
+            )}
         </div>
         
         <div className="flex-1 overflow-y-auto px-6 pt-6 space-y-8 overscroll-contain -webkit-overflow-scrolling-touch" style={{paddingBottom: 'calc(120px + env(safe-area-inset-bottom, 20px)'}}>
