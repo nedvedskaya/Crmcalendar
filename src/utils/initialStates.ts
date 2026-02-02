@@ -33,7 +33,7 @@ export const getInitialRecordState = (branch?: string) => ({
 export const getInitialClientState = () => ({
   createdAt: getDateStr(0),
   name: '',
-  phone: '+',
+  phone: '',
   birthDate: '',
   city: '',
   carBrand: '',
