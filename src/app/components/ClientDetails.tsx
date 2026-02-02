@@ -91,7 +91,7 @@ export const ClientDetails = ({
   onDeleteTask, onEditTask, onUpdateBranch,
   categories, tags = [], userRole = 'owner' 
 }: ClientDetailsProps) => {
-  const clientTasks = tasks.filter(t => t.clientId === client.id);
+  const clientTasks = tasks.filter(t => t.clientId && client.id && String(t.clientId) === String(client.id));
   const activeTasks = clientTasks.filter(t => !t.completed);
   const completedTasks = clientTasks.filter(t => t.completed);
   const [showArchive, setShowArchive] = useState(false);

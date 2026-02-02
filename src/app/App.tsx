@@ -1397,7 +1397,9 @@ const App = () => {
           title: updatedTask.title || updatedTask.task || '',
           description: updatedTask.description || '',
           status: updatedTask.completed ? 'completed' : 'pending',
-          priority: updatedTask.urgency || 'medium'
+          priority: updatedTask.urgency || 'medium',
+          client_id: updatedTask.clientId || null,
+          due_date: updatedTask.date || null
         });
       } catch (error) {
         console.error('Error updating task:', error);
