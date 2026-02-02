@@ -45,12 +45,16 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           {task.completed && <CheckCircle2 size={14} />}
         </button>
         <div className="flex-1 min-w-0">
-          {client && (
+          {(client || task.clientName) && (
             <button 
-              onClick={() => onOpenClient && onOpenClient(client)}
-              className="text-xs bg-blue-500 text-white px-2 py-1 rounded-lg font-bold hover:bg-blue-600 transition-colors mb-2 inline-block"
+              onClick={() => client && onOpenClient && onOpenClient(client)}
+              className={`text-xs px-2 py-1 rounded-lg font-bold mb-2 inline-block ${
+                client 
+                  ? 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer' 
+                  : 'bg-zinc-200 text-zinc-600 cursor-default'
+              } transition-colors`}
             >
-              {client.name}
+              {client?.name || task.clientName}
             </button>
           )}
           <p className={`font-bold text-sm ${task.completed ? 'line-through text-zinc-400' : 'text-zinc-900'}`}>
