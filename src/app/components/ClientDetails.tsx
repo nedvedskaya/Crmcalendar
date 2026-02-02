@@ -153,12 +153,12 @@ export const ClientDetails = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[120] bg-zinc-50 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300" style={{height: '100dvh', minHeight: '-webkit-fill-available'}}>
+    <div className="fixed top-0 left-0 right-0 z-[120] bg-zinc-50 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300" style={{bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))'}}>
       <div className="px-5 pb-4 bg-white border-b border-zinc-200 flex items-center justify-between shrink-0" style={{paddingTop: 'max(env(safe-area-inset-top, 12px), 48px)'}}>
         <button onClick={onBack} className="flex items-center gap-1 text-zinc-600 font-bold"><ChevronLeft size={24} /> Назад</button>
         <div className="flex gap-4"><button onClick={onEdit} className="text-zinc-500 hover:text-black transition-colors"><Edit3 size={20} /></button><button onClick={onDelete} className="text-red-500 transition-colors"><Trash2 size={20} /></button></div>
       </div>
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 overscroll-contain" style={{paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 20px)', WebkitOverflowScrolling: 'touch'} as any}>
+      <div className="flex-1 overflow-y-auto p-6 space-y-8 overscroll-contain" style={{paddingBottom: '40px', WebkitOverflowScrolling: 'touch'} as any}>
         <div className="text-center">
           <h2 className="text-3xl font-black text-black leading-tight mb-2">{String(client.name || '')}</h2>
           <span className="text-xl font-medium text-zinc-400">{String(client.phone || '')}</span>

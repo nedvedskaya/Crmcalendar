@@ -148,7 +148,7 @@ const AutocompleteInput = ({ options, value, onChange, placeholder, className, n
 
 // AppointmentInputs вынесен в отдельный файл: /src/app/components/forms/AppointmentInputs.tsx
 
-const TabBar = ({ activeTab, setActiveTab, userRole = 'owner' }) => {
+const TabBar = ({ activeTab, setActiveTab, userRole = 'owner', onTabChange = null }) => {
   const allTabs = [
     { id: 'clients', icon: Users, label: 'Клиенты' },
     { id: 'tasks', icon: CheckSquare, label: 'Задачи' },
@@ -159,11 +159,16 @@ const TabBar = ({ activeTab, setActiveTab, userRole = 'owner' }) => {
   // Фильтруем вкладки по правам доступа
   const tabs = allTabs.filter(tab => canAccessTab(userRole, tab.id));
   
+  const handleTabClick = (tabId) => {
+    setActiveTab(tabId);
+    if (onTabChange) onTabChange(tabId);
+  };
+  
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-zinc-200 z-[250] shrink-0" style={{paddingBottom: 'env(safe-area-inset-bottom, 0px)', minHeight: '64px'}}>
       <div className="flex justify-between items-center max-w-lg mx-auto px-4 py-2">
         {tabs.map((tab) => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center justify-center w-full transition-all active:scale-90 ${activeTab === tab.id ? 'text-black' : 'text-zinc-400'}`}>
+          <button key={tab.id} onClick={() => handleTabClick(tab.id)} className={`flex flex-col items-center justify-center w-full transition-all active:scale-90 ${activeTab === tab.id ? 'text-black' : 'text-zinc-400'}`}>
             <tab.icon size={24} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
             <span className="text-[10px] font-bold mt-1 uppercase tracking-tighter">{String(tab.label)}</span>
           </button>
@@ -1572,7 +1577,7 @@ const App = () => {
           {selectedClient && <ClientDetails client={filteredClients.find(c => c.id === selectedClient.id) || selectedClient} tasks={tasks} onBack={() => setSelectedClient(null)} onEdit={() => setEditingClient({ client: selectedClient, mode: 'full' })} onDelete={() => {handleDeleteClient(selectedClient.id); setSelectedClient(null);}} onAddTask={handleAddTask} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddRecord={handleAddRecord} onEditRecord={handleEditRecord} onCompleteRecord={handleCompleteRecord} onRestoreRecord={handleRestoreRecord} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} onUpdateBranch={handleUpdateClientBranch} activeTab={activeTab} setActiveTab={setActiveTab} categories={categories} userRole={user?.role || 'owner'} />}
           {editingClient && <ClientForm client={editingClient.client} onSave={(upd) => {handleSaveClient(upd); setEditingClient(null); if(selectedClient?.id === upd.id) setSelectedClient({...selectedClient, ...upd});}} onCancel={() => setEditingClient(null)} title={'Редактирование'} currentBranch={currentBranch} />}
       </div>
-      <TabBar activeTab={activeTab} setActiveTab={setActiveTab} userRole={user?.role || 'owner'} />
+      <TabBar activeTab={activeTab} setActiveTab={setActiveTab} userRole={user?.role || 'owner'} onTabChange={() => setSelectedClient(null)} />
       <style>{`
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         :root {
