@@ -11,7 +11,7 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit, client, onOpenClient }: an
   const isUrgent = task.urgency === 'high' || task.isUrgent;
   
   return (
-    <div className={`p-4 rounded-xl border ${task.completed ? 'bg-zinc-50 border-zinc-200 opacity-60' : isOverdue ? 'bg-red-50 border-red-200' : isUrgent ? 'bg-orange-50 border-orange-200' : 'bg-white border-zinc-200'} shadow-sm`}>
+    <div className={`p-4 rounded-xl border ${task.completed ? 'bg-zinc-50 border-zinc-200' : isOverdue ? 'bg-red-50 border-red-200' : isUrgent ? 'bg-orange-50 border-orange-200' : 'bg-white border-zinc-200'} shadow-sm`}>
       <div className="flex items-start gap-3">
         <button 
           onClick={() => onToggle(task.id)}
@@ -38,6 +38,14 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit, client, onOpenClient }: an
                 className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-medium hover:bg-blue-200 transition-colors"
               >
                 {client.name}
+              </button>
+            )}
+            {task.completed && (
+              <button 
+                onClick={() => onToggle(task.id)}
+                className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded font-semibold hover:bg-blue-200 transition-colors"
+              >
+                Восстановить
               </button>
             )}
           </div>

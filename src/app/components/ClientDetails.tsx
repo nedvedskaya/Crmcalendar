@@ -39,7 +39,7 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit }: any) => {
   const isUrgent = task.urgency === 'high' || task.isUrgent;
   
   return (
-    <div className={`p-4 rounded-xl border ${task.completed ? 'bg-zinc-50 border-zinc-200 opacity-60' : isOverdue ? 'bg-red-50 border-red-200' : isUrgent ? 'bg-orange-50 border-orange-200' : 'bg-white border-zinc-200'} shadow-sm`}>
+    <div className={`p-4 rounded-xl border ${task.completed ? 'bg-zinc-50 border-zinc-200' : isOverdue ? 'bg-red-50 border-red-200' : isUrgent ? 'bg-orange-50 border-orange-200' : 'bg-white border-zinc-200'} shadow-sm`}>
       <div className="flex items-start gap-3">
         <button 
           onClick={() => onToggle(task.id)}
@@ -51,7 +51,7 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit }: any) => {
           <p className={`font-bold text-sm ${task.completed ? 'line-through text-zinc-400' : 'text-zinc-900'}`}>
             {task.title || task.task}
           </p>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className={`text-xs ${isOverdue ? 'text-red-500 font-bold' : 'text-zinc-400'}`}>
               {formatDate(task.date)} • {task.time}
             </span>
@@ -59,6 +59,14 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit }: any) => {
               <span className="text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded font-bold">
                 СРОЧНО
               </span>
+            )}
+            {task.completed && (
+              <button 
+                onClick={() => onToggle(task.id)}
+                className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded font-semibold hover:bg-blue-200 transition-colors"
+              >
+                Восстановить
+              </button>
             )}
           </div>
         </div>
