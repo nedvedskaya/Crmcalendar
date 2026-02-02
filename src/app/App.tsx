@@ -397,7 +397,7 @@ const App = () => {
             ...client,
             city: client.city || '',
             source: client.source || '',
-            branch: client.branch_id || null,
+            branch: client.branch || client.branch_id || null,
             carBrand: parsedNotes.carBrand || '',
             carModel: parsedNotes.carModel || '',
             vin: parsedNotes.vin || '',
@@ -662,7 +662,7 @@ const App = () => {
           email: data.email || '',
           city: data.city || '',
           source: data.source || '',
-          branch_id: data.branch || null,
+          branch: data.branch || null,
           notes: JSON.stringify({
             carBrand: data.carBrand,
             carModel: data.carModel,
@@ -1168,7 +1168,7 @@ const App = () => {
           email: updatedClient.email || '',
           city: updatedClient.city || '',
           source: updatedClient.source || '',
-          branch_id: updatedClient.branch || null,
+          branch: updatedClient.branch || null,
           notes: JSON.stringify({
             carBrand: updatedClient.carBrand,
             carModel: updatedClient.carModel,
