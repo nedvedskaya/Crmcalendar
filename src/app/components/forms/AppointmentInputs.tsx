@@ -1,4 +1,5 @@
 import React from 'react';
+import { getDateStr } from '@/utils/helpers';
 
 interface Category {
     id: string;
@@ -7,12 +8,19 @@ interface Category {
     color: string;
 }
 
+interface Tag {
+    id: string | number;
+    name: string;
+    color?: string;
+}
+
 interface AppointmentData {
     service?: string;
     date?: string;
     time?: string;
     endDate?: string;
     category?: string;
+    tags?: (string | number)[];
     amount?: string | number;
     advance?: string | number;
     advanceDate?: string;
@@ -21,11 +29,28 @@ interface AppointmentData {
 
 interface AppointmentInputsProps {
     data: AppointmentData;
-    onChange: (e: { target: { name: string; value: string | number } }) => void;
+    onChange: (e: { target: { name: string; value: string | number | (string | number)[] } }) => void;
     categories?: Category[];
+    tags?: Tag[];
 }
 
-export const AppointmentInputs: React.FC<AppointmentInputsProps> = ({ data, onChange, categories }) => {
+export const AppointmentInputs: React.FC<AppointmentInputsProps> = ({ data, onChange, categories, tags }) => {
+    const handleAdvanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        onChange({ target: { name: 'advance', value } });
+        
+        if (value && parseFloat(value) > 0 && !data.advanceDate) {
+            onChange({ target: { name: 'advanceDate', value: getDateStr(0) } });
+        }
+    };
+    
+    const toggleTag = (tagId: string | number) => {
+        const currentTags = data.tags || [];
+        const newTags = currentTags.includes(tagId)
+            ? currentTags.filter(t => t !== tagId)
+            : [...currentTags, tagId];
+        onChange({ target: { name: 'tags', value: newTags } });
+    };
     return (
         <div className="space-y-3">
             <input 
@@ -117,7 +142,7 @@ export const AppointmentInputs: React.FC<AppointmentInputsProps> = ({ data, onCh
                         type="text" 
                         name="advance" 
                         value={String(data.advance || '')} 
-                        onChange={onChange} 
+                        onChange={handleAdvanceChange} 
                         placeholder="0 ₽" 
                         className="w-full bg-white border border-zinc-300 rounded-xl p-4 font-bold text-black outline-none focus:border-black shadow-sm" 
                     />
@@ -133,6 +158,34 @@ export const AppointmentInputs: React.FC<AppointmentInputsProps> = ({ data, onCh
                     />
                 </div>
             </div>
+            
+            {tags && tags.length > 0 && (
+                <div>
+                    <span className="text-xs text-gray-400 font-semibold block mb-2">Теги</span>
+                    <div className="flex flex-wrap gap-2">
+                        {tags.map(tag => (
+                            <button
+                                key={tag.id}
+                                type="button"
+                                onClick={() => toggleTag(tag.id)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
+                                    (data.tags || []).includes(tag.id)
+                                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
+                            >
+                                {tag.color && (
+                                    <div 
+                                        className="w-2 h-2 rounded-full" 
+                                        style={{ backgroundColor: tag.color }}
+                                    />
+                                )}
+                                {tag.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
             
             <div>
                 <span className="text-xs text-gray-400 font-semibold block mb-2">Оплата</span>

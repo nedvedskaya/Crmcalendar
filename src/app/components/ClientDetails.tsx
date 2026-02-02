@@ -30,6 +30,7 @@ interface ClientDetailsProps {
   onEditTask: (task: any) => void;
   onUpdateBranch?: (clientId: any, branch: string) => void;
   categories: any[];
+  tags?: any[];
   userRole?: string;
 }
 
@@ -80,7 +81,7 @@ export const ClientDetails = ({
   client, onBack, tasks, onEdit, onAddTask, onDelete, onToggleTask, 
   onAddRecord, onEditRecord, onCompleteRecord, onRestoreRecord, 
   onDeleteTask, onEditTask, onUpdateBranch,
-  categories, userRole = 'owner' 
+  categories, tags = [], userRole = 'owner' 
 }: ClientDetailsProps) => {
   const clientTasks = tasks.filter(t => t.clientId === client.id);
   const activeTasks = clientTasks.filter(t => !t.completed);
@@ -227,7 +228,7 @@ export const ClientDetails = ({
           
           {(isAddingRecord || editingRecordId) && (
             <div className="space-y-4 mb-4">
-              <AppointmentInputs data={newRecord} onChange={(e: any) => setNewRecord({...newRecord, [e.target.name]: e.target.value})} categories={categories || []} />
+              <AppointmentInputs data={newRecord} onChange={(e: any) => setNewRecord({...newRecord, [e.target.name]: e.target.value})} categories={categories || []} tags={tags || []} />
               <div className="flex gap-2">
                 <Button
                   variant="secondary"

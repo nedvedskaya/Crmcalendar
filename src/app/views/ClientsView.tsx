@@ -15,6 +15,8 @@ interface ClientsViewProps {
   currentBranch?: string;
   dateFilter?: 'all' | 'today' | 'week' | 'month' | 'year';
   onDateFilterChange?: (filter: 'all' | 'today' | 'week' | 'month' | 'year') => void;
+  categories?: any[];
+  tags?: any[];
 }
 
 export const ClientsView = ({ 
@@ -26,7 +28,9 @@ export const ClientsView = ({
   ClientForm,
   currentBranch = 'MSK',
   dateFilter = 'all',
-  onDateFilterChange
+  onDateFilterChange,
+  categories = [],
+  tags = []
 }: ClientsViewProps) => {
   const [isAdding, setIsAdding] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -97,6 +101,8 @@ export const ClientsView = ({
           }} 
           onCancel={() => setIsAdding(false)}
           currentBranch={currentBranch}
+          categories={categories}
+          tags={tags}
         />
       )}
       
