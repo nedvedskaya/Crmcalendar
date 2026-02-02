@@ -806,7 +806,19 @@ const App = () => {
         });
         
         setClients(clientsWithRecords);
-        setTasks(tasksData || []);
+        // Маппинг полей из БД в формат фронтенда
+        const processedTasks = (tasksData || []).map(t => ({
+          ...t,
+          clientId: t.client_id || null,
+          clientName: t.client_name || null,
+          completed: t.status === 'completed',
+          isUrgent: t.priority === 'high',
+          urgency: t.priority === 'high' ? 'high' : 'low',
+          task: t.title,
+          date: t.due_date || t.date || getDateStr(0),
+          time: t.time || '10:00'
+        }));
+        setTasks(processedTasks);
         setTransactions(processedTransactions);
         setCategories(categoriesData || []);
         setTags(tagsData || []);
