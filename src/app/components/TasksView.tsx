@@ -6,7 +6,7 @@ import { Button } from '@/app/components/ui/Button';
 import { BranchSelector } from '@/app/components/ui/BranchSelector';
 import { Header } from '@/app/components/ui/Header';
 
-const TaskItem = ({ task, onToggle, onDelete, onEdit, client }: any) => {
+const TaskItem = ({ task, onToggle, onDelete, onEdit, client, onOpenClient }: any) => {
   const isOverdue = task.date < getDateStr(0) && !task.completed;
   const isUrgent = task.urgency === 'high' || task.isUrgent;
   
@@ -33,9 +33,12 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit, client }: any) => {
               </span>
             )}
             {client && (
-              <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-medium">
+              <button 
+                onClick={() => onOpenClient && onOpenClient(client)}
+                className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-medium hover:bg-blue-200 transition-colors"
+              >
                 {client.name}
-              </span>
+              </button>
             )}
           </div>
         </div>
@@ -131,9 +134,10 @@ interface TasksViewProps {
     onEditTask: (task: Task) => void;
     clients: Client[];
     currentBranch: string;
+    onOpenClient?: (client: any) => void;
 }
 
-const TasksView: React.FC<TasksViewProps> = ({ tasks, onToggleTask, onAddTask, onDeleteTask, onEditTask, clients, currentBranch }) => {
+const TasksView: React.FC<TasksViewProps> = ({ tasks, onToggleTask, onAddTask, onDeleteTask, onEditTask, clients, currentBranch, onOpenClient }) => {
     const [isAdding, setIsAdding] = useState(false);
     const [showArchive, setShowArchive] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -332,7 +336,7 @@ const TasksView: React.FC<TasksViewProps> = ({ tasks, onToggleTask, onAddTask, o
                                 </div>
                                 {todayTasks.map(t => {
                                     const client = t.clientId ? clients.find(c => c.id === t.clientId) : null;
-                                    return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} />;
+                                    return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} onOpenClient={onOpenClient} />;
                                 })}
                             </div>
                         )}
@@ -345,7 +349,7 @@ const TasksView: React.FC<TasksViewProps> = ({ tasks, onToggleTask, onAddTask, o
                                 </div>
                                 {futureTasks.map(t => {
                                     const client = t.clientId ? clients.find(c => c.id === t.clientId) : null;
-                                    return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} />;
+                                    return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} onOpenClient={onOpenClient} />;
                                 })}
                             </div>
                         )}
@@ -369,7 +373,7 @@ const TasksView: React.FC<TasksViewProps> = ({ tasks, onToggleTask, onAddTask, o
                         ) : (
                             displayTasks.map(t => {
                                 const client = t.clientId ? clients.find(c => c.id === t.clientId) : null;
-                                return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} />;
+                                return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} onOpenClient={onOpenClient} />;
                             })
                         )}
                     </div>
@@ -389,7 +393,7 @@ const TasksView: React.FC<TasksViewProps> = ({ tasks, onToggleTask, onAddTask, o
                             <div className="space-y-2.5 opacity-60 animate-in fade-in">
                                 {archivedTasks.map(t => {
                                     const client = t.clientId ? clients.find(c => c.id === t.clientId) : null;
-                                    return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} />;
+                                    return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} onOpenClient={onOpenClient} />;
                                 })}
                             </div>
                         )}
