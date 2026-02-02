@@ -1277,24 +1277,38 @@ const App = () => {
       const record = (c.records || []).find(r => r.id === recordId);
       if (!record) return;
       
+      const transactionsToDelete: number[] = [];
+      
       if (record.amount) {
-          const transactionTitle = `Оплата: ${record.service || 'Услуга'}`;
-          
-          const matchingTransaction = transactions.find(t => {
-              const isSameAmount = t.amount === Number(record.amount);
-              const isSameTitle = t.title === transactionTitle;
+          const paymentTitle = `Оплата: ${record.service || 'Услуга'}`;
+          const matchingPayment = transactions.find(t => {
+              const isSameAmount = t.amount === Number(record.amount) || t.amount === (Number(record.amount) - (Number(record.advance) || 0));
+              const isSameTitle = t.title === paymentTitle;
               const isSameSub = t.sub?.includes(c.name);
               const isIncome = t.type === 'income';
               return isSameAmount && isSameTitle && isSameSub && isIncome;
           });
-          
-          if (matchingTransaction) {
-            try {
-              await api.deleteTransaction(matchingTransaction.id);
-              setTransactions(prev => prev.filter(t => t.id !== matchingTransaction.id));
-            } catch (error) {
+          if (matchingPayment) transactionsToDelete.push(matchingPayment.id);
+      }
+      
+      if (record.advance && Number(record.advance) > 0) {
+          const advanceTitle = `Аванс: ${record.service || 'Услуга'}`;
+          const matchingAdvance = transactions.find(t => {
+              const isSameAmount = t.amount === Number(record.advance);
+              const isSameTitle = t.title === advanceTitle;
+              const isSameSub = t.sub?.includes(c.name);
+              const isIncome = t.type === 'income';
+              return isSameAmount && isSameTitle && isSameSub && isIncome;
+          });
+          if (matchingAdvance) transactionsToDelete.push(matchingAdvance.id);
+      }
+      
+      for (const txId of transactionsToDelete) {
+          try {
+              await api.deleteTransaction(txId);
+              setTransactions(prev => prev.filter(t => t.id !== txId));
+          } catch (error) {
               console.error('Error deleting transaction:', error);
-            }
           }
       }
       

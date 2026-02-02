@@ -441,14 +441,6 @@ export const ClientDetails = ({
                 onToggleUrgent={() => setNewTask({...newTask, isUrgent: !newTask.isUrgent})}
               />
               
-              <button 
-                onClick={() => setNewTask({...newTask, isUrgent: !newTask.isUrgent})} 
-                className={`w-full py-3 rounded-xl text-xs font-bold border-2 transition-all flex items-center justify-center gap-2 ${newTask.isUrgent ? 'bg-gradient-to-r from-red-500 to-orange-500 border-red-500 text-white shadow-lg' : 'bg-white border-zinc-300 text-zinc-400 hover:border-zinc-400'}`}
-              >
-                {newTask.isUrgent && <AlertOctagon size={16} strokeWidth={3} />}
-                {newTask.isUrgent ? 'СРОЧНО' : 'Отметить как срочное'}
-              </button>
-              
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={handleCancelTask} className="flex-1">Отмена</Button>
                 <Button variant="primary" onClick={handleSaveTask} className="flex-1">
