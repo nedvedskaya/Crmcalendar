@@ -632,7 +632,7 @@ const ClientDetails = ({ client, onBack, tasks, onEdit, onAddTask, onDelete, onT
             onEditTask({ ...editingTask, ...newTask, urgency: newTask.isUrgent ? 'high' : 'low' });
             setEditingTask(null);
         } else {
-            onAddTask({...newTask, clientId: client.id, clientName: client.name, completed: false, urgency: newTask.isUrgent ? 'high' : 'low', id: Date.now()});
+            onAddTask({...newTask, clientId: client.id, clientName: client.name, completed: false, urgency: newTask.isUrgent ? 'high' : 'low'});
         }
         setIsAddingTask(false);
         setNewTask(getInitialTaskState(client.branch));
@@ -1069,7 +1069,7 @@ const TasksView = ({ tasks, onToggleTask, onAddTask, onDeleteTask, onEditTask, c
                 onEditTask({ ...editingTask, ...taskData });
                 setEditingTask(null);
             } else {
-                onAddTask({ ...taskData, id: Date.now() });
+                onAddTask(taskData);
             }
             
             setIsAdding(false); 
@@ -1921,22 +1921,29 @@ const App = () => {
           }
         }
         
-        if (tks?.length) {
-          for (let i = 0; i < tks.length; i++) {
-            const task = tks[i];
-            const tempTaskId = tempTaskIds[i];
-            try {
-              const savedTask = await api.createTask({
-                title: task.title || task.task,
-                description: task.description || '',
-                status: 'pending',
-                priority: task.urgency || 'medium',
-                client_id: realId
-              });
-              setTasks(prev => prev.map(t => t.id === tempTaskId ? { ...t, id: savedTask.id, clientId: realId } : t));
-            } catch (e) {
-              console.error('Error creating task:', e);
-            }
+        // Получаем текущие задачи для этого клиента из состояния (включая добавленные после создания формы)
+        let currentTasks = [];
+        setTasks(prev => {
+          currentTasks = prev.filter(t => t.clientId === tempId || (typeof t.id === 'string' && String(t.id).includes(tempId)));
+          return prev;
+        });
+        
+        // Сохраняем все задачи для нового клиента
+        for (const task of currentTasks) {
+          // Пропускаем задачи, которые уже сохранены (имеют числовой ID из БД)
+          if (typeof task.id === 'number' && task.id < 1000000000000) continue;
+          
+          try {
+            const savedTask = await api.createTask({
+              title: task.title || task.task || '',
+              description: task.description || '',
+              status: task.completed ? 'completed' : 'pending',
+              priority: task.urgency || (task.isUrgent ? 'high' : 'medium'),
+              client_id: realId
+            });
+            setTasks(prev => prev.map(t => t.id === task.id ? { ...t, id: savedTask.id, clientId: realId } : t));
+          } catch (e) {
+            console.error('Error creating task:', e);
           }
         }
       } catch (error) {
@@ -2209,6 +2216,40 @@ const App = () => {
       }
   };
   
+  const handleAddTask = async (task) => {
+      const tempId = Date.now();
+      const newTask = { ...task, id: tempId };
+      
+      // Добавляем в локальное состояние сразу (оптимистичное обновление)
+      setTasks(prev => [newTask, ...prev]);
+      
+      // Проверяем, не временный ли клиент
+      const isClientTemp = task.clientId && typeof task.clientId === 'string' && String(task.clientId).startsWith('temp_');
+      
+      // Если клиент ещё не сохранён - задача сохранится вместе с клиентом
+      if (isClientTemp) {
+        console.log('Client is new, task will be saved after client is saved');
+        return;
+      }
+      
+      try {
+        const taskData = {
+          title: task.title || task.task || '',
+          description: task.description || '',
+          status: task.completed ? 'completed' : 'pending',
+          priority: task.urgency || task.isUrgent ? 'high' : 'medium',
+          client_id: task.clientId || null
+        };
+        
+        const saved = await api.createTask(taskData);
+        
+        // Обновляем ID задачи на реальный из БД
+        setTasks(prev => prev.map(t => t.id === tempId ? { ...t, id: saved.id } : t));
+      } catch (error) {
+        console.error('Error saving task:', error);
+      }
+  };
+  
   const handleSaveClient = async (updatedClient) => {
       const previousClients = [...clients];
       setClients(clients.map(cl => cl.id === updatedClient.id ? {...cl, ...updatedClient, records: cl.records || updatedClient.records || []} : cl));
@@ -2335,11 +2376,11 @@ const App = () => {
       
       <div className="flex-1 relative overflow-hidden bg-zinc-50">
           {activeTab === 'clients' && <ClientsView allClients={filteredClients} onAddClient={handleAddClient} onDeleteClient={handleDeleteClient} onOpenClient={setSelectedClient} onEditClient={setEditingClient} ClientForm={ClientForm} currentBranch={currentBranch} dateFilter={clientsDateFilter} onDateFilterChange={setClientsDateFilter} />}
-          {activeTab === 'tasks' && <TasksView tasks={tasks} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddTask={(t) => setTasks([t, ...tasks])} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} clients={filteredClients} currentBranch={currentBranch} />}
+          {activeTab === 'tasks' && <TasksView tasks={tasks} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddTask={handleAddTask} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} clients={filteredClients} currentBranch={currentBranch} />}
           {activeTab === 'calendar' && <CalendarView events={filteredEvents} clients={filteredClients} onAddRecord={handleAddRecord} onOpenClient={setSelectedClient} categories={categories} currentBranch={currentBranch} />}
           {activeTab === 'finance' && <FinanceView transactions={transactions} onAddTransaction={handleAddManualTransaction} onEditTransaction={handleEditTransaction} onDeleteTransaction={handleDeleteTransaction} categories={categories} onAddCategory={handleAddCategory} onEditCategory={handleEditCategory} onDeleteCategory={handleDeleteCategory} tags={tags} onAddTag={handleAddTag} onDeleteTag={handleDeleteTag} />}
 
-          {selectedClient && <ClientDetails client={filteredClients.find(c => c.id === selectedClient.id) || selectedClient} tasks={tasks} onBack={() => setSelectedClient(null)} onEdit={() => setEditingClient({ client: selectedClient, mode: 'full' })} onDelete={() => {handleDeleteClient(selectedClient.id); setSelectedClient(null);}} onAddTask={(t) => setTasks([t, ...tasks])} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddRecord={handleAddRecord} onEditRecord={handleEditRecord} onCompleteRecord={handleCompleteRecord} onRestoreRecord={handleRestoreRecord} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} onUpdateBranch={handleUpdateClientBranch} activeTab={activeTab} setActiveTab={setActiveTab} categories={categories} userRole={user?.role || 'owner'} />}
+          {selectedClient && <ClientDetails client={filteredClients.find(c => c.id === selectedClient.id) || selectedClient} tasks={tasks} onBack={() => setSelectedClient(null)} onEdit={() => setEditingClient({ client: selectedClient, mode: 'full' })} onDelete={() => {handleDeleteClient(selectedClient.id); setSelectedClient(null);}} onAddTask={handleAddTask} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddRecord={handleAddRecord} onEditRecord={handleEditRecord} onCompleteRecord={handleCompleteRecord} onRestoreRecord={handleRestoreRecord} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} onUpdateBranch={handleUpdateClientBranch} activeTab={activeTab} setActiveTab={setActiveTab} categories={categories} userRole={user?.role || 'owner'} />}
           {editingClient && <ClientForm client={editingClient.client} onSave={(upd) => {handleSaveClient(upd); setEditingClient(null); if(selectedClient?.id === upd.id) setSelectedClient({...selectedClient, ...upd});}} onCancel={() => setEditingClient(null)} title={'Редактирование'} currentBranch={currentBranch} />}
       </div>
       <TabBar activeTab={activeTab} setActiveTab={setActiveTab} userRole={user?.role || 'owner'} />
