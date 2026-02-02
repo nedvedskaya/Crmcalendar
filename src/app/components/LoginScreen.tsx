@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const EyeIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -26,6 +26,13 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('ugt_saved_email');
+    const savedRememberMe = localStorage.getItem('ugt_remember_me');
+    if (savedEmail) setEmail(savedEmail);
+    if (savedRememberMe !== null) setRememberMe(savedRememberMe === 'true');
+  }, []);
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -72,6 +79,13 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
       }
       
       if (data.success && data.user) {
+        if (rememberMe) {
+          localStorage.setItem('ugt_saved_email', email);
+          localStorage.setItem('ugt_remember_me', 'true');
+        } else {
+          localStorage.removeItem('ugt_saved_email');
+          localStorage.setItem('ugt_remember_me', 'false');
+        }
         onLogin({
           id: data.user.id,
           name: data.user.name,
