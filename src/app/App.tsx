@@ -1409,6 +1409,30 @@ const App = () => {
       }
   };
 
+  const handleToggleTask = async (id) => {
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+      
+      const updatedTask = { ...task, completed: !task.completed };
+      setTasks(tasks.map(t => t.id === id ? updatedTask : t));
+      
+      const isRealId = typeof id === 'number' && id < 2147483647;
+      if (isRealId) {
+        try {
+          await api.updateTask(id, {
+            title: task.title || task.task || '',
+            description: task.description || '',
+            status: updatedTask.completed ? 'completed' : 'pending',
+            priority: task.urgency || 'medium',
+            client_id: task.clientId || null,
+            due_date: task.date || null
+          });
+        } catch (error) {
+          console.error('Error toggling task:', error);
+        }
+      }
+  };
+
   const handleDeleteTask = async (id) => {
       setTasks(tasks.filter(t => t.id !== id));
       
@@ -1607,11 +1631,11 @@ const App = () => {
       
       <div className="flex-1 relative overflow-hidden bg-zinc-50">
           {activeTab === 'clients' && <ClientsView allClients={filteredClients} onAddClient={handleAddClient} onDeleteClient={handleDeleteClient} onOpenClient={setSelectedClient} onEditClient={setEditingClient} ClientForm={ClientForm} currentBranch={currentBranch} dateFilter={clientsDateFilter} onDateFilterChange={setClientsDateFilter} categories={categories} tags={tags} />}
-          {activeTab === 'tasks' && <TasksView tasks={tasks} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddTask={handleAddTask} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} clients={filteredClients} currentBranch={currentBranch} onOpenClient={setSelectedClient} />}
+          {activeTab === 'tasks' && <TasksView tasks={tasks} onToggleTask={handleToggleTask} onAddTask={handleAddTask} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} clients={filteredClients} currentBranch={currentBranch} onOpenClient={setSelectedClient} />}
           {activeTab === 'calendar' && <CalendarView events={filteredEvents} clients={filteredClients} onAddRecord={handleAddRecord} onOpenClient={setSelectedClient} categories={categories} tags={tags} currentBranch={currentBranch} />}
           {activeTab === 'finance' && <FinanceView transactions={transactions} onAddTransaction={handleAddManualTransaction} onEditTransaction={handleEditTransaction} onDeleteTransaction={handleDeleteTransaction} categories={categories} onAddCategory={handleAddCategory} onEditCategory={handleEditCategory} onDeleteCategory={handleDeleteCategory} tags={tags} onAddTag={handleAddTag} onDeleteTag={handleDeleteTag} />}
 
-          {selectedClient && <ClientDetails client={filteredClients.find(c => c.id === selectedClient.id) || selectedClient} tasks={tasks} onBack={() => setSelectedClient(null)} onEdit={() => setEditingClient({ client: selectedClient, mode: 'full' })} onDelete={() => {handleDeleteClient(selectedClient.id); setSelectedClient(null);}} onAddTask={handleAddTask} onToggleTask={(id) => setTasks(tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t))} onAddRecord={handleAddRecord} onEditRecord={handleEditRecord} onCompleteRecord={handleCompleteRecord} onRestoreRecord={handleRestoreRecord} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} onUpdateBranch={handleUpdateClientBranch} categories={categories} tags={tags} userRole={user?.role || 'owner'} />}
+          {selectedClient && <ClientDetails client={filteredClients.find(c => c.id === selectedClient.id) || selectedClient} tasks={tasks} onBack={() => setSelectedClient(null)} onEdit={() => setEditingClient({ client: selectedClient, mode: 'full' })} onDelete={() => {handleDeleteClient(selectedClient.id); setSelectedClient(null);}} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onAddRecord={handleAddRecord} onEditRecord={handleEditRecord} onCompleteRecord={handleCompleteRecord} onRestoreRecord={handleRestoreRecord} onDeleteTask={handleDeleteTask} onEditTask={handleEditTask} onUpdateBranch={handleUpdateClientBranch} categories={categories} tags={tags} userRole={user?.role || 'owner'} />}
           {editingClient && <ClientForm client={editingClient.client} onSave={(upd) => {handleSaveClient(upd); setEditingClient(null); if(selectedClient?.id === upd.id) setSelectedClient({...selectedClient, ...upd});}} onCancel={() => setEditingClient(null)} title={'Редактирование'} currentBranch={currentBranch} categories={categories} tags={tags} />}
       </div>
       <TabBar activeTab={activeTab} setActiveTab={setActiveTab} userRole={user?.role || 'owner'} onTabChange={() => setSelectedClient(null)} />
