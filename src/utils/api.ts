@@ -535,4 +535,12 @@ export const api = {
     const response = await fetch(url, { headers: getAuthHeaders() });
     return handleResponse<any[]>(response);
   },
+
+  async clearAllData() {
+    const response = await fetch(`${API_BASE}/clear-all-data`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<any>(response);
+  },
 };

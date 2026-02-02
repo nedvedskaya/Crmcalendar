@@ -910,6 +910,20 @@ const managerOrOwner = (req, res, next) => {
   next();
 };
 
+// Очистка всех данных (только для owner)
+app.delete('/api/clear-all-data', authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM ${SCHEMA}.client_records`);
+    await pool.query(`DELETE FROM ${SCHEMA}.transactions`);
+    await pool.query(`DELETE FROM ${SCHEMA}.tasks`);
+    await pool.query(`DELETE FROM ${SCHEMA}.clients`);
+    res.json({ success: true, message: 'All data cleared' });
+  } catch (error) {
+    console.error('Error clearing data:', error);
+    res.status(500).json({ error: 'Failed to clear data' });
+  }
+});
+
 // Выход из системы
 app.post('/api/logout', authMiddleware, async (req, res) => {
   try {
