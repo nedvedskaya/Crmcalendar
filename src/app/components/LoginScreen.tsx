@@ -176,14 +176,22 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
               </p>
             )}
 
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500 cursor-pointer"
-              />
-              <span className="text-sm text-zinc-600">Запомнить меня</span>
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <div 
+                onClick={(e) => { e.preventDefault(); setRememberMe(!rememberMe); }}
+                className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+                  rememberMe 
+                    ? 'bg-zinc-900 border-zinc-900' 
+                    : 'bg-white border-zinc-300'
+                }`}
+              >
+                {rememberMe && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                )}
+              </div>
+              <span className="text-sm text-zinc-600 font-medium">Запомнить меня</span>
             </label>
           </div>
 
