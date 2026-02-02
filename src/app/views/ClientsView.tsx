@@ -85,9 +85,9 @@ export const ClientsView = ({
     <div className="flex flex-col h-full bg-zinc-50 overflow-hidden relative">
       {isAdding && (
         <ClientForm 
-          onSave={(d: any, t: any, r: any) => { 
+          onSave={(d: any, t: any, r: any, shouldClose?: boolean) => { 
             onAddClient(d, t, r); 
-            setIsAdding(false); 
+            if (shouldClose !== false) setIsAdding(false); 
           }} 
           onCancel={() => setIsAdding(false)}
           currentBranch={currentBranch}

@@ -275,7 +275,7 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
     
     saveTimeoutRef.current = setTimeout(() => {
       if (formDataRef.current.name && formDataRef.current.name.trim() !== '') {
-        onSave(formDataRef.current, newTasksRef.current, newRecordsRef.current);
+        onSave(formDataRef.current, newTasksRef.current, newRecordsRef.current, false);
         setIsSaved(true);
       }
     }, 2000);
@@ -289,7 +289,7 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
   const handleClose = () => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     if (formData.name && formData.name.trim() !== '' && !isSaved) {
-      onSave(formData, newTasks, newRecords);
+      onSave(formData, newTasks, newRecords, true);
     }
     onCancel();
   };
@@ -354,7 +354,7 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
                     size="md" 
                     onClick={() => {
                         if (formData.name) {
-                            onSave(formData, newTasks, newRecords);
+                            onSave(formData, newTasks, newRecords, true);
                             setIsSaved(true);
                         }
                     }}
