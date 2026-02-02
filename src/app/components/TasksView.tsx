@@ -6,56 +6,7 @@ import { Button } from '@/app/components/ui/Button';
 import { BranchSelector } from '@/app/components/ui/BranchSelector';
 import { Header } from '@/app/components/ui/Header';
 import { TaskItem } from '@/app/components/ui/TaskItem';
-
-const AutocompleteInput = ({ options, value, onChange, placeholder, className }: any) => {
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    onChange(e);
-    if (val.length > 0) {
-      const filtered = options.filter((opt: string) =>
-        opt.toLowerCase().includes(val.toLowerCase())
-      );
-      setSuggestions(filtered.slice(0, 5));
-      setShowSuggestions(true);
-    } else {
-      setShowSuggestions(false);
-    }
-  };
-
-  const handleSelect = (option: string) => {
-    onChange({ target: { value: option } });
-    setShowSuggestions(false);
-  };
-
-  return (
-    <div className="relative">
-      <input
-        type="text"
-        value={value || ''}
-        onChange={handleChange}
-        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-        placeholder={placeholder}
-        className={className}
-      />
-      {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-zinc-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-          {suggestions.map((option, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSelect(option)}
-              className="w-full text-left px-4 py-2 hover:bg-zinc-50 text-sm font-medium"
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+import { AutocompleteInput } from '@/app/components/ui/AutocompleteInput';
 
 interface Task {
     id: string;

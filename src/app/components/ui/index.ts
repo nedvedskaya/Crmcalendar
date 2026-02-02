@@ -17,3 +17,4 @@ export { ActionButtons } from './ActionButtons';
 export { EmptyState } from './EmptyState';
 export { PaymentStatusSelector } from './PaymentStatusSelector';
 export { TaskItem } from './TaskItem';
+export { AutocompleteInput } from './AutocompleteInput';

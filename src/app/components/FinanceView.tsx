@@ -5,7 +5,7 @@ import { TransactionItem } from '@/app/components/TransactionItem';
 import ExcelJS from 'exceljs';
 
 // Импорт утилит и констант
-import { BTN_METAL_DARK, BTN_METAL, CARD_METAL } from '@/utils/constants';
+import { BTN_METAL_DARK, BTN_METAL, CARD_METAL, COLORS } from '@/utils/constants';
 import { formatMoney, formatDate, formatDateShort } from '@/utils/helpers';
 import { getInitialTransactionState } from '@/utils/initialStates';
 import { Header } from '@/app/components/ui/Header';
@@ -13,13 +13,6 @@ import { Button } from '@/app/components/ui/Button';
 import { Modal } from '@/app/components/ui/Modal';
 import { ColorPicker } from '@/app/components/ui/ColorPicker';
 import { ToggleGroup } from '@/app/components/ui/ToggleGroup';
-
-const COLORS = [
-    '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', 
-    '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
-    '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
-    '#ec4899', '#f43f5e'
-];
 
 interface FinanceViewProps {
     transactions: any[];
