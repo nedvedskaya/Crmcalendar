@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { 
   ChevronLeft, Edit3, Trash2, Phone, MessageSquare, 
   CalendarDays, CheckCircle2, RotateCcw, History, 
-  ChevronDown, AlertOctagon, Coins, Users, CheckSquare, 
-  Calendar, Wallet 
+  ChevronDown, AlertOctagon, Coins
 } from 'lucide-react';
 import { Button } from '@/app/components/ui/Button';
 import { Badge } from '@/app/components/ui/Badge';
@@ -14,7 +13,6 @@ import { BTN_METAL, CARD_METAL } from '@/utils/constants';
 import { formatDate, formatMoney, getDateStr } from '@/utils/helpers';
 import { getInitialTaskState, getInitialRecordState } from '@/utils/initialStates';
 import { sanitizeTelUrl, sanitizeWhatsAppUrl, safeOpenLink } from '@/utils/sanitize';
-import { canAccessTab } from '@/utils/permissions';
 
 interface ClientDetailsProps {
   client: any;
@@ -31,8 +29,6 @@ interface ClientDetailsProps {
   onDeleteTask: (id: any) => void;
   onEditTask: (task: any) => void;
   onUpdateBranch?: (clientId: any, branch: string) => void;
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
   categories: any[];
   userRole?: string;
 }
@@ -83,7 +79,7 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit }: any) => {
 export const ClientDetails = ({ 
   client, onBack, tasks, onEdit, onAddTask, onDelete, onToggleTask, 
   onAddRecord, onEditRecord, onCompleteRecord, onRestoreRecord, 
-  onDeleteTask, onEditTask, onUpdateBranch, activeTab, setActiveTab, 
+  onDeleteTask, onEditTask, onUpdateBranch,
   categories, userRole = 'owner' 
 }: ClientDetailsProps) => {
   const clientTasks = tasks.filter(t => t.clientId === client.id);
@@ -465,47 +461,6 @@ export const ClientDetails = ({
         </div>
       </div>
       
-      {/* Навигация внизу карточки клиента */}
-      <div className="sticky bottom-0 bg-white border-t border-zinc-200 px-4 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]" style={{paddingBottom: 'max(env(safe-area-inset-bottom, 8px), 8px)', paddingTop: '8px'}}>
-        <div className="flex justify-around">
-          {canAccessTab(userRole, 'clients') && (
-            <button 
-              onClick={() => { onBack(); setActiveTab('clients'); }}
-              className="flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all active:scale-95"
-            >
-              <Users size={22} className="text-zinc-400" />
-              <span className="text-[10px] font-bold text-zinc-400">Клиенты</span>
-            </button>
-          )}
-          {canAccessTab(userRole, 'tasks') && (
-            <button 
-              onClick={() => { onBack(); setActiveTab('tasks'); }}
-              className="flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all active:scale-95"
-            >
-              <CheckSquare size={22} className="text-zinc-400" />
-              <span className="text-[10px] font-bold text-zinc-400">Задачи</span>
-            </button>
-          )}
-          {canAccessTab(userRole, 'calendar') && (
-            <button 
-              onClick={() => { onBack(); setActiveTab('calendar'); }}
-              className="flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all active:scale-95"
-            >
-              <Calendar size={22} className="text-zinc-400" />
-              <span className="text-[10px] font-bold text-zinc-400">Календарь</span>
-            </button>
-          )}
-          {canAccessTab(userRole, 'finance') && (
-            <button 
-              onClick={() => { onBack(); setActiveTab('finance'); }}
-              className="flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all active:scale-95"
-            >
-              <Wallet size={22} className="text-zinc-400" />
-              <span className="text-[10px] font-bold text-zinc-400">Финансы</span>
-            </button>
-          )}
-        </div>
-      </div>
     </div>
   );
 };
