@@ -173,6 +173,7 @@ The application uses secure email/password authentication:
 - **Terser minification** - Production build with console/debugger removal
 
 ## Recent Changes
+- 2026-02-02: Fixed categories/tags persistence - now properly saved to database via API calls
 - 2026-02-02: Fixed client data persistence - added city/branch columns to clients table, updated API and frontend mapping
 - 2026-02-02: Client fields now properly saved: name, phone, email, city, source, branch + carBrand/carModel/vin/licensePlate in notes JSON
 - 2026-02-02: TaskItem now shows client name badge even when client object lookup fails

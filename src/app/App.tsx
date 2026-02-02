@@ -499,24 +499,6 @@ const App = () => {
     categoriesRef.current = categories;
   }, [categories]);
   
-  useEffect(() => {
-    if (!isLoading && categories.length > 0) {
-      const timer = setTimeout(() => {
-        api.saveData('categories', categories).catch(console.error);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [categories, isLoading]);
-
-  // Сохранение тегов через API
-  useEffect(() => {
-    if (!isLoading && tags.length > 0) {
-      const timer = setTimeout(() => {
-        api.saveData('tags', tags).catch(console.error);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [tags, isLoading]);
 
   // Обработка входа
   const handleLogin = (userData: { id: number; name: string; email: string; role: string; isOwner: boolean }, token?: string) => {
@@ -1183,31 +1165,77 @@ const App = () => {
       }
   };
   
-  const handleAddCategory = (category) => {
-      setCategories(prev => [...prev, category]);
+  const handleAddCategory = async (category) => {
+      const tempId = Date.now();
+      const newCategory = { ...category, id: tempId };
+      setCategories(prev => [...prev, newCategory]);
+      
+      try {
+        const saved = await api.createCategory({ name: category.name, type: category.type });
+        setCategories(prev => prev.map(c => c.id === tempId ? { ...c, id: saved.id } : c));
+      } catch (error) {
+        console.error('Error creating category:', error);
+        setCategories(prev => prev.filter(c => c.id !== tempId));
+      }
   };
   
-  const handleEditCategory = (id, updates) => {
+  const handleEditCategory = async (id, updates) => {
+      const previousCategories = [...categories];
       setCategories(prev => prev.map(c => c.id === id ? {...c, ...updates} : c));
+      
+      try {
+        await api.updateCategory(id, updates);
+      } catch (error) {
+        console.error('Error updating category:', error);
+        setCategories(previousCategories);
+      }
   };
   
-  const handleDeleteCategory = (id) => {
+  const handleDeleteCategory = async (id) => {
+      const previousCategories = [...categories];
+      const previousTransactions = [...transactions];
       setCategories(prev => prev.filter(c => c.id !== id));
-      // Удаляем категорию из транзакций
       setTransactions(prev => prev.map(t => t.category === id ? {...t, category: null} : t));
+      
+      try {
+        await api.deleteCategory(id);
+      } catch (error) {
+        console.error('Error deleting category:', error);
+        setCategories(previousCategories);
+        setTransactions(previousTransactions);
+      }
   };
   
-  const handleAddTag = (tag) => {
-      setTags(prev => [...prev, tag]);
+  const handleAddTag = async (tag) => {
+      const tempId = Date.now();
+      const newTag = { ...tag, id: tempId };
+      setTags(prev => [...prev, newTag]);
+      
+      try {
+        const saved = await api.createTag({ name: tag.name });
+        setTags(prev => prev.map(t => t.id === tempId ? { ...t, id: saved.id } : t));
+      } catch (error) {
+        console.error('Error creating tag:', error);
+        setTags(prev => prev.filter(t => t.id !== tempId));
+      }
   };
   
-  const handleDeleteTag = (id) => {
+  const handleDeleteTag = async (id) => {
+      const previousTags = [...tags];
+      const previousTransactions = [...transactions];
       setTags(prev => prev.filter(t => t.id !== id));
-      // Удаляем тег из транзакций
       setTransactions(prev => prev.map(t => ({
           ...t,
           tags: t.tags ? t.tags.filter(tagId => tagId !== id) : []
       })));
+      
+      try {
+        await api.deleteTag(id);
+      } catch (error) {
+        console.error('Error deleting tag:', error);
+        setTags(previousTags);
+        setTransactions(previousTransactions);
+      }
   };
   
   const handleAddManualTransaction = async (transactionData) => {
