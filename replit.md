@@ -162,6 +162,10 @@ The application uses secure email/password authentication:
 - `managerOrOwner` - Restricts access to manager or owner roles
 
 ## Recent Changes
+- 2026-02-02: DRY refactoring - App.tsx reduced from ~2491 to ~1626 lines (~35% reduction)
+- 2026-02-02: Extracted ClientDetails component to src/app/components/ClientDetails.tsx (511 lines)
+- 2026-02-02: Extracted TasksView component to src/app/components/TasksView.tsx (403 lines)
+- 2026-02-02: Created AppointmentInputs component in src/app/components/forms/AppointmentInputs.tsx (177 lines)
 - 2026-02-02: Fixed booking (client_records) flow - field mapping service_name, proper saving for new clients
 - 2026-02-02: Fixed record persistence: records added during/after client creation now properly save to DB
 - 2026-02-02: Fixed transaction timing: transactions created only after record successfully saves to prevent orphans
