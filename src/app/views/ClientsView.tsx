@@ -3,7 +3,7 @@ import { Search, Download, Plus, ChevronDown, Filter } from 'lucide-react';
 import { ClientListCard } from '@/app/components/clients';
 import { EmptyState } from '@/app/components/ui';
 import { useSearch, useDateFilter } from '@/app/hooks';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 interface ClientsViewProps {
   allClients: any[];
@@ -38,47 +38,53 @@ export const ClientsView = ({
   });
 
   // Функция экспорта базы клиентов в Excel
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (allClients.length === 0) {
       alert('Нет клиентов для экспорта');
       return;
     }
 
-    // Подготовка данных для экспорта
-    const exportData = allClients.map(client => ({
-      'ФИО': client.name || '',
-      'Телефон': client.phone || '',
-      'Город': client.city || '',
-      'Марка авто': client.carBrand || '',
-      'Модель авто': client.carModel || '',
-      'Комментарии': client.notes || '',
-      'Дата добавления': client.createdDate || '',
-      'Филиал': client.branch || ''
-    }));
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Клиенты');
 
-    // Создание рабочей книги Excel
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Клиенты');
+    worksheet.columns = [
+      { header: 'ФИО', key: 'name', width: 25 },
+      { header: 'Телефон', key: 'phone', width: 18 },
+      { header: 'Город', key: 'city', width: 15 },
+      { header: 'Марка авто', key: 'carBrand', width: 15 },
+      { header: 'Модель авто', key: 'carModel', width: 15 },
+      { header: 'Комментарии', key: 'notes', width: 30 },
+      { header: 'Дата добавления', key: 'createdDate', width: 15 },
+      { header: 'Филиал', key: 'branch', width: 10 }
+    ];
 
-    // Автоподбор ширины колонок
-    const maxWidth = exportData.reduce((acc, row) => {
-      Object.keys(row).forEach((key, i) => {
-        const cellLength = String(row[key]).length;
-        acc[i] = Math.max(acc[i] || 10, cellLength + 2);
+    allClients.forEach(client => {
+      worksheet.addRow({
+        name: client.name || '',
+        phone: client.phone || '',
+        city: client.city || '',
+        carBrand: client.carBrand || '',
+        carModel: client.carModel || '',
+        notes: client.notes || '',
+        createdDate: client.createdDate || '',
+        branch: client.branch || ''
       });
-      return acc;
-    }, [] as number[]);
+    });
 
-    worksheet['!cols'] = maxWidth.map(w => ({ wch: w }));
+    worksheet.getRow(1).font = { bold: true };
 
-    // Генерация имени файла с текущей датой
     const now = new Date();
     const dateStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
     const fileName = `Клиенты_${dateStr}.xlsx`;
 
-    // Сохранение файла
-    XLSX.writeFile(workbook, fileName);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (

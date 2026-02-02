@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Plus, X, ArrowDownLeft, ArrowUpRight, Wallet, Edit3, Trash2, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Tag, BarChart3, ChevronDown, Download } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { TransactionItem } from '@/app/components/TransactionItem';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 // Импорт утилит и констант
 import { BTN_METAL_DARK, BTN_METAL, CARD_METAL } from '@/utils/constants';
@@ -317,52 +317,56 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
     }, [transactions]);
     
     // Функция экспорта в Excel
-    const exportToExcel = () => {
+    const exportToExcel = async () => {
         if (transactions.length === 0) {
             alert('Нет данных для экспорта');
             return;
         }
 
-        // Подготовка данных для экспорта
-        const exportData = transactions.map(t => {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Операции');
+
+        worksheet.columns = [
+            { header: 'Дата', key: 'date', width: 15 },
+            { header: 'Тип', key: 'type', width: 10 },
+            { header: 'Название', key: 'title', width: 25 },
+            { header: 'Сумма', key: 'amount', width: 12 },
+            { header: 'Описание', key: 'description', width: 25 },
+            { header: 'Категория', key: 'category', width: 15 },
+            { header: 'Теги', key: 'tags', width: 20 },
+            { header: 'Филиал', key: 'branch', width: 10 }
+        ];
+
+        transactions.forEach(t => {
             const category = categories.find(c => c.id === t.category);
             const transactionTags = tags.filter(tag => t.tags?.includes(tag.id));
             
-            return {
-                'Дата': formatDate(t.date || t.createdDate),
-                'Тип': t.type === 'income' ? 'Доход' : 'Расход',
-                'Название': t.title,
-                'Сумма': Number(t.amount || 0),
-                'Описание': t.sub || '',
-                'Категория': category?.name || 'Без категории',
-                'Теги': transactionTags.map(tag => tag.name).join(', ') || '',
-                'Филиал': t.branch || ''
-            };
+            worksheet.addRow({
+                date: formatDate(t.date || t.createdDate),
+                type: t.type === 'income' ? 'Доход' : 'Расход',
+                title: t.title,
+                amount: Number(t.amount || 0),
+                description: t.sub || '',
+                category: category?.name || 'Без категории',
+                tags: transactionTags.map(tag => tag.name).join(', ') || '',
+                branch: t.branch || ''
+            });
         });
 
-        // Создание рабочей книги Excel
-        const worksheet = XLSX.utils.json_to_sheet(exportData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Операции');
+        worksheet.getRow(1).font = { bold: true };
 
-        // Автоподбор ширины колонок
-        const maxWidth = exportData.reduce((acc, row) => {
-            Object.keys(row).forEach((key, i) => {
-                const cellLength = String(row[key]).length;
-                acc[i] = Math.max(acc[i] || 10, cellLength + 2);
-            });
-            return acc;
-        }, [] as number[]);
-
-        worksheet['!cols'] = maxWidth.map(w => ({ wch: w }));
-
-        // Генерация имени файла с текущей датой
         const now = new Date();
         const dateStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
         const fileName = `Финансы_${dateStr}.xlsx`;
 
-        // Сохранение файла
-        XLSX.writeFile(workbook, fileName);
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
     };
     
     return (
