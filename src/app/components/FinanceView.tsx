@@ -202,16 +202,24 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
     const balance = income - expense;
     
     const handleSaveTransaction = () => {
-        if (!newTransaction.title || !newTransaction.amount) return;
+        // Проверяем только title (amount может быть 0 для некоторых случаев)
+        if (!newTransaction.title || newTransaction.title.trim() === '') return;
+        if (newTransaction.amount === undefined || newTransaction.amount === '') return;
         
         const transactionData = {
             ...newTransaction,
+            amount: parseFloat(newTransaction.amount) || 0,
             category: selectedCategory,
             tags: selectedTags,
         };
         
         if (editingTransaction) {
-            onEditTransaction({ ...editingTransaction, ...transactionData });
+            // Объединяем данные редактируемой транзакции с новыми данными
+            const updated = {
+                ...(editingTransaction as any),
+                ...transactionData,
+            };
+            onEditTransaction(updated);
         } else {
             onAddTransaction(transactionData);
         }
@@ -260,9 +268,25 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
     
     const handleEditClick = (t) => {
         setEditingTransaction(t);
-        setNewTransaction({ title: t.title.replace('Оплата: ', ''), amount: t.amount, type: t.type, sub: t.sub || '' });
+        const transactionTitle = t.title || t.description || '';
+        let dateStr = '';
+        try {
+            const d = new Date(t.date || t.createdDate);
+            if (!isNaN(d.getTime())) {
+                dateStr = d.toISOString().split('T')[0];
+            }
+        } catch (e) {
+            dateStr = '';
+        }
+        setNewTransaction({ 
+            title: transactionTitle.replace('Оплата: ', '').replace('Аванс: ', ''), 
+            amount: t.amount, 
+            type: t.type, 
+            sub: t.sub || '',
+            date: dateStr
+        });
         setSelectedCategory(t.category || '');
-        setSelectedTags(t.tags || []);
+        setSelectedTags(Array.isArray(t.tags) ? t.tags : []);
         setIsAdding(true);
     };
     
@@ -702,12 +726,21 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
                                                   onEdit={(transaction) => {
                                                       setEditingTransaction(transaction);
                                                       const transactionTitle = transaction.title || transaction.description || '';
+                                                      let dateStr = '';
+                                                      try {
+                                                          const d = new Date(transaction.date || transaction.createdDate);
+                                                          if (!isNaN(d.getTime())) {
+                                                              dateStr = d.toISOString().split('T')[0];
+                                                          }
+                                                      } catch (e) {
+                                                          dateStr = '';
+                                                      }
                                                       setNewTransaction({ 
-                                                          title: transactionTitle.replace('Оплата: ', ''), 
+                                                          title: transactionTitle.replace('Оплата: ', '').replace('Аванс: ', ''), 
                                                           amount: transaction.amount, 
                                                           type: transaction.type, 
                                                           sub: transaction.sub || '',
-                                                          date: new Date(transaction.date).toISOString().split('T')[0]
+                                                          date: dateStr
                                                       });
                                                       setSelectedCategory(transaction.category || '');
                                                       setSelectedTags(Array.isArray(transaction.tags) ? transaction.tags : []);
