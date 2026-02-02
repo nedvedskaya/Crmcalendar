@@ -410,14 +410,14 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
                             onChange={(e) => setTaskInput({...taskInput, [e.target.name]: e.target.value})}
                             onToggleUrgent={() => setTaskInput({...taskInput, isUrgent: !taskInput.isUrgent})}
                         />
-                        <button onClick={() => { if(taskInput.title) { setNewTasks([...newTasks, {...taskInput, id: Date.now()}]); setTaskInput(getInitialTaskState(currentBranch)); setIsTaskFormOpen(false); } }} className={`w-full py-3 rounded-lg text-sm font-bold ${BTN_METAL_DARK}`}>Добавить задачу</button>
+                        <button onClick={() => { if(taskInput.title) { setNewTasks([...newTasks, {...taskInput, id: Date.now()}]); setTaskInput(getInitialTaskState(currentBranch)); setIsTaskFormOpen(false); setIsSaved(false); } }} className={`w-full py-3 rounded-lg text-sm font-bold ${BTN_METAL_DARK}`}>Добавить задачу</button>
                     </div>
                 )}
                 <div className="space-y-2">
                     {newTasks.map(t => (
                         <div key={t.id} className="bg-white p-3 rounded-xl border border-zinc-200 flex items-center justify-between shadow-sm">
                             <div><p className="text-sm font-bold text-zinc-800">{String(t.title || '')}</p><span className="text-[10px] text-zinc-400">{formatDate(t.date)} {String(t.time || '')}</span></div>
-                            <button onClick={() => setNewTasks(newTasks.filter(item => item.id !== t.id))} className="text-zinc-300 hover:text-red-500 transition-colors"><X size={16}/></button>
+                            <button onClick={() => { setNewTasks(newTasks.filter(item => item.id !== t.id)); setIsSaved(false); }} className="text-zinc-300 hover:text-red-500 transition-colors"><X size={16}/></button>
                         </div>
                     ))}
                 </div>
@@ -439,6 +439,7 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
                                     setNewRecords([...newRecords, {...recordInput, id: Date.now()}]); 
                                     setRecordInput(getInitialRecordState()); 
                                     setIsRecordFormOpen(false); 
+                                    setIsSaved(false);
                                 } 
                             }} 
                             className={`w-full py-3 rounded-lg text-sm font-bold ${BTN_METAL_DARK}`}
@@ -459,7 +460,7 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
                                     {r.paymentStatus === 'advance' && <span className="text-[9px] bg-orange-400 text-white px-1.5 py-0.5 rounded">Аванс</span>}
                                 </div>
                             </div>
-                            <button onClick={() => setNewRecords(newRecords.filter(item => item.id !== r.id))} className="text-zinc-300 hover:text-red-500 transition-colors"><X size={16}/></button>
+                            <button onClick={() => { setNewRecords(newRecords.filter(item => item.id !== r.id)); setIsSaved(false); }} className="text-zinc-300 hover:text-red-500 transition-colors"><X size={16}/></button>
                         </div>
                     ))}
                 </div>
