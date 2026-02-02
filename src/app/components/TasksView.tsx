@@ -20,10 +20,18 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit, client, onOpenClient }: an
           {task.completed && <CheckCircle2 size={14} />}
         </button>
         <div className="flex-1 min-w-0">
+          {client && (
+            <button 
+              onClick={() => onOpenClient && onOpenClient(client)}
+              className="text-xs bg-blue-500 text-white px-2 py-1 rounded-lg font-bold hover:bg-blue-600 transition-colors mb-2 inline-block"
+            >
+              {client.name}
+            </button>
+          )}
           <p className={`font-bold text-sm ${task.completed ? 'line-through text-zinc-400' : 'text-zinc-900'}`}>
             {task.title || task.task}
           </p>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
             <span className={`text-xs ${isOverdue ? 'text-red-500 font-bold' : 'text-zinc-400'}`}>
               {formatDate(task.date)} • {task.time}
             </span>
@@ -31,14 +39,6 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit, client, onOpenClient }: an
               <span className="text-[10px] bg-orange-500 text-white px-1.5 py-0.5 rounded font-bold">
                 СРОЧНО
               </span>
-            )}
-            {client && (
-              <button 
-                onClick={() => onOpenClient && onOpenClient(client)}
-                className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-medium hover:bg-blue-200 transition-colors"
-              >
-                {client.name}
-              </button>
             )}
             {task.completed && (
               <button 
@@ -50,16 +50,18 @@ const TaskItem = ({ task, onToggle, onDelete, onEdit, client, onOpenClient }: an
             )}
           </div>
         </div>
-        {!task.completed && onEdit && (
-          <button onClick={() => onEdit(task)} className="text-zinc-400 hover:text-zinc-600">
-            <Edit3 size={16} />
-          </button>
-        )}
-        {onDelete && (
-          <button onClick={() => onDelete(task.id)} className="text-zinc-400 hover:text-red-500">
-            <Trash2 size={16} />
-          </button>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {!task.completed && onEdit && (
+            <button onClick={() => onEdit(task)} className="text-zinc-400 hover:text-zinc-600 p-1">
+              <Edit3 size={16} />
+            </button>
+          )}
+          {onDelete && (
+            <button onClick={() => onDelete(task.id)} className="text-zinc-400 hover:text-red-500 p-1">
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -343,7 +345,7 @@ const TasksView: React.FC<TasksViewProps> = ({ tasks, onToggleTask, onAddTask, o
                                     Сегодня и просроченные
                                 </div>
                                 {todayTasks.map(t => {
-                                    const client = t.clientId ? clients.find(c => c.id === t.clientId) : null;
+                                    const client = t.clientId ? clients.find(c => String(c.id) === String(t.clientId)) : null;
                                     return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} onOpenClient={onOpenClient} />;
                                 })}
                             </div>
@@ -356,7 +358,7 @@ const TasksView: React.FC<TasksViewProps> = ({ tasks, onToggleTask, onAddTask, o
                                     Запланированные
                                 </div>
                                 {futureTasks.map(t => {
-                                    const client = t.clientId ? clients.find(c => c.id === t.clientId) : null;
+                                    const client = t.clientId ? clients.find(c => String(c.id) === String(t.clientId)) : null;
                                     return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} onOpenClient={onOpenClient} />;
                                 })}
                             </div>
@@ -380,7 +382,7 @@ const TasksView: React.FC<TasksViewProps> = ({ tasks, onToggleTask, onAddTask, o
                             </div>
                         ) : (
                             displayTasks.map(t => {
-                                const client = t.clientId ? clients.find(c => c.id === t.clientId) : null;
+                                const client = t.clientId ? clients.find(c => String(c.id) === String(t.clientId)) : null;
                                 return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} onOpenClient={onOpenClient} />;
                             })
                         )}
@@ -400,7 +402,7 @@ const TasksView: React.FC<TasksViewProps> = ({ tasks, onToggleTask, onAddTask, o
                         {showArchive && (
                             <div className="space-y-2.5 opacity-60 animate-in fade-in">
                                 {archivedTasks.map(t => {
-                                    const client = t.clientId ? clients.find(c => c.id === t.clientId) : null;
+                                    const client = t.clientId ? clients.find(c => String(c.id) === String(t.clientId)) : null;
                                     return <TaskItem key={t.id} task={t} onToggle={onToggleTask} onDelete={onDeleteTask} onEdit={handleEditTask} client={client} onOpenClient={onOpenClient} />;
                                 })}
                             </div>
