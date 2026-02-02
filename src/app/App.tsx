@@ -385,11 +385,26 @@ const App = () => {
           recordsByClient[clientId].push(recordData);
         });
         
-        // Объединяем клиентов с их записями
-        const clientsWithRecords = (clientsData || []).map(client => ({
-          ...client,
-          records: recordsByClient[client.id] || []
-        }));
+        // Объединяем клиентов с их записями и парсим notes
+        const clientsWithRecords = (clientsData || []).map(client => {
+          let parsedNotes = {};
+          try {
+            parsedNotes = client.notes ? JSON.parse(client.notes) : {};
+          } catch {
+            parsedNotes = {};
+          }
+          return {
+            ...client,
+            city: client.city || '',
+            source: client.source || '',
+            branch: client.branch_id || null,
+            carBrand: parsedNotes.carBrand || '',
+            carModel: parsedNotes.carModel || '',
+            vin: parsedNotes.vin || '',
+            licensePlate: parsedNotes.licensePlate || '',
+            records: recordsByClient[client.id] || []
+          };
+        });
         
         // Восстанавливаем события из записей
         const eventsFromRecords = [];
@@ -645,14 +660,14 @@ const App = () => {
           name: data.name,
           phone: data.phone || '',
           email: data.email || '',
+          city: data.city || '',
+          source: data.source || '',
+          branch_id: data.branch || null,
           notes: JSON.stringify({
             carBrand: data.carBrand,
             carModel: data.carModel,
             vin: data.vin,
-            licensePlate: data.licensePlate,
-            branch: data.branch,
-            records: [],
-            ...data
+            licensePlate: data.licensePlate
           })
         };
         
@@ -1151,14 +1166,14 @@ const App = () => {
           name: updatedClient.name,
           phone: updatedClient.phone || '',
           email: updatedClient.email || '',
+          city: updatedClient.city || '',
+          source: updatedClient.source || '',
+          branch_id: updatedClient.branch || null,
           notes: JSON.stringify({
             carBrand: updatedClient.carBrand,
             carModel: updatedClient.carModel,
             vin: updatedClient.vin,
-            licensePlate: updatedClient.licensePlate,
-            branch: updatedClient.branch,
-            records: updatedClient.records || [],
-            ...updatedClient
+            licensePlate: updatedClient.licensePlate
           })
         });
       } catch (error) {

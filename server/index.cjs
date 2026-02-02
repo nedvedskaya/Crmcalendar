@@ -1303,13 +1303,13 @@ app.get('/api/clients', authMiddleware, async (req, res) => {
 
 app.post('/api/clients', authMiddleware, async (req, res) => {
   try {
-    const { name, phone, email, notes, branch_id, source } = req.body;
+    const { name, phone, email, notes, branch_id, source, city } = req.body;
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Name is required' });
     }
     const result = await pool.query(
-      `INSERT INTO ${SCHEMA}.clients (name, phone, email, notes, branch_id, source) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [name.trim(), phone || null, email || null, notes || null, branch_id || null, source || null]
+      `INSERT INTO ${SCHEMA}.clients (name, phone, email, notes, branch_id, source, city) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [name.trim(), phone || null, email || null, notes || null, branch_id || null, source || null, city || null]
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -1324,13 +1324,13 @@ app.put('/api/clients/:id', authMiddleware, async (req, res) => {
     if (!id || isNaN(parseInt(id))) {
       return res.status(400).json({ error: 'Invalid client ID' });
     }
-    const { name, phone, email, notes, branch_id, source } = req.body;
+    const { name, phone, email, notes, branch_id, source, city } = req.body;
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Name is required' });
     }
     const result = await pool.query(
-      `UPDATE ${SCHEMA}.clients SET name = $1, phone = $2, email = $3, notes = $4, branch_id = $5, source = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7 RETURNING *`,
-      [name.trim(), phone || null, email || null, notes || null, branch_id || null, source || null, parseInt(id)]
+      `UPDATE ${SCHEMA}.clients SET name = $1, phone = $2, email = $3, notes = $4, branch_id = $5, source = $6, city = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $8 RETURNING *`,
+      [name.trim(), phone || null, email || null, notes || null, branch_id || null, source || null, city || null, parseInt(id)]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Client not found' });
