@@ -1568,14 +1568,21 @@ const App = () => {
           if (!recordsByClient[clientId]) {
             recordsByClient[clientId] = [];
           }
-          // Восстанавливаем данные записи из notes
-          let recordData = { id: record.id, service: record.service, date: record.date, amount: record.amount, isPaid: record.is_paid, isCompleted: record.is_completed };
-          try {
-            if (record.notes) {
-              const parsed = JSON.parse(record.notes);
-              recordData = { ...parsed, ...recordData };
-            }
-          } catch (e) {}
+          // Маппинг полей из БД в формат фронтенда
+          const recordData = {
+            id: record.id,
+            service: record.service_name || record.description || '',
+            date: record.date,
+            time: record.time || '10:00',
+            amount: parseFloat(record.amount) || 0,
+            advance: parseFloat(record.advance) || 0,
+            advanceDate: record.advance_date,
+            endDate: record.end_date,
+            category: record.category_id,
+            paymentStatus: record.payment_status || 'none',
+            isPaid: record.is_paid || false,
+            isCompleted: record.is_completed || false
+          };
           recordsByClient[clientId].push(recordData);
         });
         
@@ -1841,8 +1848,78 @@ const App = () => {
         const savedClient = await api.createClient(clientData);
         const realId = savedClient.id;
         
-        setClients(prev => prev.map(c => c.id === tempId ? { ...c, id: realId } : c));
+        // Обновляем ID клиента и получаем текущие записи из состояния
+        let currentRecords = [];
+        setClients(prev => {
+          const client = prev.find(c => c.id === tempId);
+          currentRecords = client?.records || [];
+          return prev.map(c => c.id === tempId ? { ...c, id: realId } : c);
+        });
         setEvents(prev => prev.map(e => e.clientId === tempId ? { ...e, clientId: realId } : e));
+        
+        // Сохраняем все записи (брони) для нового клиента - используем текущее состояние, а не параметр recs
+        if (currentRecords.length > 0) {
+          for (const rec of currentRecords) {
+            // Пропускаем записи, которые уже сохранены (имеют числовой ID из БД)
+            if (typeof rec.id === 'number' && rec.id < 1000000000000) continue;
+            
+            try {
+              const recordData = {
+                client_id: realId,
+                service_name: rec.service,
+                description: rec.service,
+                date: rec.date,
+                time: rec.time || '10:00',
+                amount: parseFloat(rec.amount) || 0,
+                advance: parseFloat(rec.advance) || 0,
+                advance_date: rec.advanceDate || null,
+                end_date: rec.endDate || null,
+                category_id: rec.category ? parseInt(rec.category) : null,
+                payment_status: rec.paymentStatus || 'none',
+                is_paid: rec.paymentStatus === 'paid',
+                is_completed: rec.isCompleted || false
+              };
+              
+              const savedRecord = await api.createClientRecord(recordData);
+              setClients(prev => prev.map(cl => cl.id === realId ? { 
+                ...cl, 
+                records: (cl.records || []).map(r => r.id === rec.id ? { ...r, id: savedRecord.id } : r) 
+              } : cl));
+              setEvents(prev => prev.map(e => e.recordId === rec.id ? { ...e, recordId: savedRecord.id } : e));
+              
+              // Создаём транзакции после успешного сохранения записи
+              if (rec.advance && parseFloat(rec.advance) > 0) {
+                addTransaction(
+                  rec.advance,
+                  `Аванс: ${rec.service || 'Услуга'}`,
+                  `${data.carBrand} ${data.carModel}`,
+                  'income',
+                  data.name,
+                  rec.category || '',
+                  rec.advanceDate || rec.date
+                );
+              }
+              
+              if (rec.paymentStatus === 'paid' && rec.amount && parseFloat(rec.amount) > 0) {
+                const advanceAmount = parseFloat(rec.advance) || 0;
+                const totalAmount = parseFloat(rec.amount) || 0;
+                const remainingAmount = totalAmount - advanceAmount;
+                if (remainingAmount > 0) {
+                  addTransaction(
+                    remainingAmount,
+                    `Оплата: ${rec.service || 'Услуга'}`,
+                    `${data.carBrand} ${data.carModel}`,
+                    'income',
+                    data.name,
+                    rec.category || ''
+                  );
+                }
+              }
+            } catch (e) {
+              console.error('Error creating record:', e);
+            }
+          }
+        }
         
         if (tks?.length) {
           for (let i = 0; i < tks.length; i++) {
@@ -1873,37 +1950,32 @@ const App = () => {
       
       const tempRecordId = Date.now();
       const newRecord = { ...rec, id: tempRecordId };
+      const isClientNew = typeof clientId === 'string' && clientId.startsWith('temp_');
       
       setClients(prev => prev.map(cl => cl.id === clientId ? { ...cl, records: [...(cl.records || []), newRecord] } : cl));
       setEvents(prev => [...prev, { id: tempRecordId + 1, clientId: clientId, recordId: tempRecordId, branch: c.branch, date: rec.date, endDate: rec.endDate, time: rec.time, service: rec.service, title: `${c.carBrand} (${rec.service})`, type: 'work' }]);
       
-      // Если есть аванс - создаём транзакцию аванса
-      if (rec.advance && parseFloat(rec.advance) > 0) {
-        addTransaction(
-          rec.advance,
-          `Аванс: ${rec.service || 'Услуга'}`,
-          `${c.carBrand} ${c.carModel}`,
-          'income',
-          c.name,
-          rec.category || '',
-          rec.advanceDate || rec.date
-        );
+      // Если клиент ещё не сохранён в БД - запись и транзакции создадутся после сохранения клиента
+      if (isClientNew) {
+        console.log('Client is new, record will be saved after client is saved');
+        return;
       }
       
       try {
         const recordData = {
           client_id: clientId,
-          service: rec.service,
+          service_name: rec.service,
+          description: rec.service,
           date: rec.date,
-          amount: rec.amount || 0,
-          advance: rec.advance || 0,
+          time: rec.time || '10:00',
+          amount: parseFloat(rec.amount) || 0,
+          advance: parseFloat(rec.advance) || 0,
           advance_date: rec.advanceDate || null,
           end_date: rec.endDate || null,
-          category_id: rec.category || null,
+          category_id: rec.category ? parseInt(rec.category) : null,
           payment_status: rec.paymentStatus || 'none',
-          is_paid: rec.isPaid || false,
-          is_completed: rec.isCompleted || false,
-          notes: JSON.stringify({ ...rec, clientId })
+          is_paid: rec.paymentStatus === 'paid',
+          is_completed: rec.isCompleted || false
         };
         
         const saved = await api.createClientRecord(recordData);
@@ -1913,6 +1985,37 @@ const App = () => {
           records: (cl.records || []).map(r => r.id === tempRecordId ? { ...r, id: saved.id } : r) 
         } : cl));
         setEvents(prev => prev.map(e => e.recordId === tempRecordId ? { ...e, recordId: saved.id } : e));
+        
+        // Создаём транзакции только после успешного сохранения записи
+        // Если есть аванс - создаём транзакцию аванса
+        if (rec.advance && parseFloat(rec.advance) > 0) {
+          addTransaction(
+            rec.advance,
+            `Аванс: ${rec.service || 'Услуга'}`,
+            `${c.carBrand} ${c.carModel}`,
+            'income',
+            c.name,
+            rec.category || '',
+            rec.advanceDate || rec.date
+          );
+        }
+        
+        // Если статус оплаты - "оплачено", создаём транзакцию
+        if (rec.paymentStatus === 'paid' && rec.amount && parseFloat(rec.amount) > 0) {
+          const advanceAmount = parseFloat(rec.advance) || 0;
+          const totalAmount = parseFloat(rec.amount) || 0;
+          const remainingAmount = totalAmount - advanceAmount;
+          if (remainingAmount > 0) {
+            addTransaction(
+              remainingAmount,
+              `Оплата: ${rec.service || 'Услуга'}`,
+              `${c.carBrand} ${c.carModel}`,
+              'income',
+              c.name,
+              rec.category || ''
+            );
+          }
+        }
       } catch (error) {
         console.error('Error saving record:', error);
       }
@@ -1931,12 +2034,18 @@ const App = () => {
       
       try {
         await api.updateClientRecord(recordId, {
-          service: rec.service,
+          service_name: rec.service,
+          description: rec.service,
           date: rec.date,
-          amount: rec.amount || 0,
-          is_paid: rec.isPaid || false,
-          is_completed: rec.isCompleted || false,
-          notes: JSON.stringify({ ...rec, clientId })
+          time: rec.time || '10:00',
+          amount: parseFloat(rec.amount) || 0,
+          advance: parseFloat(rec.advance) || 0,
+          advance_date: rec.advanceDate || null,
+          end_date: rec.endDate || null,
+          category_id: rec.category ? parseInt(rec.category) : null,
+          payment_status: rec.paymentStatus || 'none',
+          is_paid: rec.paymentStatus === 'paid',
+          is_completed: rec.isCompleted || false
         });
       } catch (error) {
         console.error('Error updating record:', error);
@@ -1967,7 +2076,7 @@ const App = () => {
       
       setClients(prev => prev.map(cl => cl.id === clientId ? { 
           ...cl, 
-          records: (cl.records || []).map(r => r.id === recordId ? { ...r, isPaid: true, isCompleted: true } : r) 
+          records: (cl.records || []).map(r => r.id === recordId ? { ...r, isPaid: true, isCompleted: true, paymentStatus: 'paid' } : r) 
       } : cl));
       
       try {
@@ -2013,14 +2122,16 @@ const App = () => {
           records: (cl.records || []).map(r => r.id === recordId ? { 
               ...r, 
               isPaid: false, 
-              isCompleted: false 
+              isCompleted: false,
+              paymentStatus: 'none'
           } : r) 
       } : cl));
       
       try {
         await api.updateClientRecord(recordId, {
           is_paid: false,
-          is_completed: false
+          is_completed: false,
+          payment_status: 'none'
         });
       } catch (error) {
         console.error('Error restoring record:', error);

@@ -162,6 +162,10 @@ The application uses secure email/password authentication:
 - `managerOrOwner` - Restricts access to manager or owner roles
 
 ## Recent Changes
+- 2026-02-02: Fixed booking (client_records) flow - field mapping service_name, proper saving for new clients
+- 2026-02-02: Fixed record persistence: records added during/after client creation now properly save to DB
+- 2026-02-02: Fixed transaction timing: transactions created only after record successfully saves to prevent orphans
+- 2026-02-02: Fixed archive/restore: proper paymentStatus field updates in local and DB state
 - 2026-02-02: Mobile optimization for iPhone - fixed viewport height, safe area insets, scroll areas
 - 2026-02-02: Russian phone auto-formatting (+7 XXX XXX-XX-XX) with empty initial state
 - 2026-01-26: Added comprehensive input sanitization (XSS, SQL injection protection) via middleware
