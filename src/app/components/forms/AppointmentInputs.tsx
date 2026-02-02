@@ -97,31 +97,60 @@ export const AppointmentInputs: React.FC<AppointmentInputsProps> = ({ data, onCh
                 />
             </div>
             
-            {categories && categories.length > 0 && (
-                <div>
-                    <span className="text-xs text-gray-400 font-semibold block mb-2">Категория</span>
-                    <div className="flex flex-wrap gap-2">
-                        {categories.filter(cat => cat.type === 'income').map(cat => (
-                            <button
-                                key={cat.id}
-                                type="button"
-                                onClick={() => onChange({ target: { name: 'category', value: data.category === cat.id ? '' : cat.id }})}
-                                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
-                                    data.category === cat.id 
-                                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' 
-                                    : 'bg-gray-100 text-gray-600'
-                                }`}
-                            >
-                                <div 
-                                    className="w-2 h-2 rounded-full" 
-                                    style={{ backgroundColor: cat.color }}
-                                />
-                                {cat.name}
-                            </button>
-                        ))}
+            <div className="grid grid-cols-2 gap-3">
+                {categories && categories.length > 0 && (
+                    <div>
+                        <span className="text-xs text-gray-400 font-semibold block mb-2">Категория</span>
+                        <div className="flex flex-wrap gap-1.5">
+                            {categories.filter(cat => cat.type === 'income').map(cat => (
+                                <button
+                                    key={cat.id}
+                                    type="button"
+                                    onClick={() => onChange({ target: { name: 'category', value: data.category === cat.id ? '' : cat.id }})}
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
+                                        data.category === cat.id 
+                                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' 
+                                        : 'bg-gray-100 text-gray-600'
+                                    }`}
+                                >
+                                    <div 
+                                        className="w-2 h-2 rounded-full" 
+                                        style={{ backgroundColor: cat.color }}
+                                    />
+                                    {cat.name}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+                {tags && tags.length > 0 && (
+                    <div>
+                        <span className="text-xs text-gray-400 font-semibold block mb-2">Теги</span>
+                        <div className="flex flex-wrap gap-1.5">
+                            {tags.map(tag => (
+                                <button
+                                    key={tag.id}
+                                    type="button"
+                                    onClick={() => toggleTag(tag.id)}
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
+                                        (data.tags || []).includes(tag.id)
+                                        ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
+                                        : 'bg-gray-100 text-gray-600'
+                                    }`}
+                                >
+                                    {tag.color && (
+                                        <div 
+                                            className="w-2 h-2 rounded-full" 
+                                            style={{ backgroundColor: tag.color }}
+                                        />
+                                    )}
+                                    {tag.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
             
             <div>
                 <span className="text-xs text-gray-400 font-semibold block mb-2">Общая сумма услуги</span>
@@ -158,34 +187,6 @@ export const AppointmentInputs: React.FC<AppointmentInputsProps> = ({ data, onCh
                     />
                 </div>
             </div>
-            
-            {tags && tags.length > 0 && (
-                <div>
-                    <span className="text-xs text-gray-400 font-semibold block mb-2">Теги</span>
-                    <div className="flex flex-wrap gap-2">
-                        {tags.map(tag => (
-                            <button
-                                key={tag.id}
-                                type="button"
-                                onClick={() => toggleTag(tag.id)}
-                                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
-                                    (data.tags || []).includes(tag.id)
-                                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30' 
-                                    : 'bg-gray-100 text-gray-600'
-                                }`}
-                            >
-                                {tag.color && (
-                                    <div 
-                                        className="w-2 h-2 rounded-full" 
-                                        style={{ backgroundColor: tag.color }}
-                                    />
-                                )}
-                                {tag.name}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
             
             <div>
                 <span className="text-xs text-gray-400 font-semibold block mb-2">Оплата</span>
