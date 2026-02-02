@@ -255,47 +255,21 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
   const [recordInput, setRecordInput] = useState(getInitialRecordState());
   const [isRecordFormOpen, setIsRecordFormOpen] = useState(false);
   const [availableModels, setAvailableModels] = useState([]);
-  const [isSaved, setIsSaved] = useState(false);
-  const saveTimeoutRef = useRef(null);
-  const formDataRef = useRef(formData);
-  const newTasksRef = useRef(newTasks);
-  const newRecordsRef = useRef(newRecords);
-
-  // Обновляем refs при изменении данных
-  useEffect(() => { formDataRef.current = formData; }, [formData]);
-  useEffect(() => { newTasksRef.current = newTasks; }, [newTasks]);
-  useEffect(() => { newRecordsRef.current = newRecords; }, [newRecords]);
 
   useEffect(() => {
     const models = formData.carBrand && CAR_DATABASE[formData.carBrand] ? CAR_DATABASE[formData.carBrand] : [];
     setAvailableModels(models);
   }, [formData.carBrand]);
   
-  // Автосохранение с debounce (2 секунды после последнего изменения)
-  useEffect(() => {
-    if (!formData.name || formData.name.trim() === '') return;
-    if (isSaved) return;
-    
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    
-    saveTimeoutRef.current = setTimeout(() => {
-      if (formDataRef.current.name && formDataRef.current.name.trim() !== '') {
-        onSave(formDataRef.current, newTasksRef.current, newRecordsRef.current, false);
-        setIsSaved(true);
-      }
-    }, 2000);
-    
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    };
-  }, [formData.name, formData.phone, formData.carBrand, formData.carModel, formData.city, formData.comment, formData.branch, formData.birthDate, newTasks.length, newRecords.length]);
-  
-  // Сохранение при закрытии формы
-  const handleClose = () => {
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    if (formData.name && formData.name.trim() !== '' && !isSaved) {
+  // Сохранение клиента
+  const handleSave = () => {
+    if (formData.name && formData.name.trim() !== '') {
       onSave(formData, newTasks, newRecords, true);
     }
+  };
+  
+  // Закрытие без сохранения
+  const handleClose = () => {
     onCancel();
   };
 
@@ -349,26 +323,15 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
         <div className="px-6 pt-safe pb-4 bg-white border-b border-zinc-200 flex items-center justify-between shrink-0" style={{paddingTop: 'max(env(safe-area-inset-top, 12px), 48px)'}}>
             <Button variant="ghost" size="md" onClick={handleClose} className="text-base">Назад</Button>
             <span className="text-xl font-black">{String(title)}</span>
-            {isSaved ? (
-                <span className="text-base font-bold text-green-500 flex items-center gap-1">
-                    <Check size={16} /> Сохранено
-                </span>
-            ) : (
-                <Button 
-                    variant="ghost" 
-                    size="md" 
-                    onClick={() => {
-                        if (formData.name) {
-                            onSave(formData, newTasks, newRecords, true);
-                            setIsSaved(true);
-                        }
-                    }}
-                    className="text-base font-bold !text-orange-500"
-                    disabled={!formData.name}
-                >
-                    Сохранить
-                </Button>
-            )}
+            <Button 
+                variant="ghost" 
+                size="md" 
+                onClick={handleSave}
+                className="text-base font-bold !text-orange-500"
+                disabled={!formData.name}
+            >
+                Сохранить
+            </Button>
         </div>
         
         <div className="flex-1 overflow-y-auto px-6 pt-6 space-y-8 overscroll-contain -webkit-overflow-scrolling-touch" style={{paddingBottom: 'calc(120px + env(safe-area-inset-bottom, 20px)'}}>
@@ -415,14 +378,14 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
                             onChange={(e) => setTaskInput({...taskInput, [e.target.name]: e.target.value})}
                             onToggleUrgent={() => setTaskInput({...taskInput, isUrgent: !taskInput.isUrgent})}
                         />
-                        <button onClick={() => { if(taskInput.title) { setNewTasks([...newTasks, {...taskInput, id: Date.now()}]); setTaskInput(getInitialTaskState(currentBranch)); setIsTaskFormOpen(false); setIsSaved(false); } }} className={`w-full py-3 rounded-lg text-sm font-bold ${BTN_METAL_DARK}`}>Добавить задачу</button>
+                        <button onClick={() => { if(taskInput.title) { setNewTasks([...newTasks, {...taskInput, id: Date.now()}]); setTaskInput(getInitialTaskState(currentBranch)); setIsTaskFormOpen(false); } }} className={`w-full py-3 rounded-lg text-sm font-bold ${BTN_METAL_DARK}`}>Добавить задачу</button>
                     </div>
                 )}
                 <div className="space-y-2">
                     {newTasks.map(t => (
                         <div key={t.id} className="bg-white p-3 rounded-xl border border-zinc-200 flex items-center justify-between shadow-sm">
                             <div><p className="text-sm font-bold text-zinc-800">{String(t.title || '')}</p><span className="text-[10px] text-zinc-400">{formatDate(t.date)} {String(t.time || '')}</span></div>
-                            <button onClick={() => { setNewTasks(newTasks.filter(item => item.id !== t.id)); setIsSaved(false); }} className="text-zinc-300 hover:text-red-500 transition-colors"><X size={16}/></button>
+                            <button onClick={() => { setNewTasks(newTasks.filter(item => item.id !== t.id)); }} className="text-zinc-300 hover:text-red-500 transition-colors"><X size={16}/></button>
                         </div>
                     ))}
                 </div>
@@ -444,7 +407,6 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
                                     setNewRecords([...newRecords, {...recordInput, id: Date.now()}]); 
                                     setRecordInput(getInitialRecordState()); 
                                     setIsRecordFormOpen(false); 
-                                    setIsSaved(false);
                                 } 
                             }} 
                             className={`w-full py-3 rounded-lg text-sm font-bold ${BTN_METAL_DARK}`}
@@ -465,10 +427,21 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
                                     {r.paymentStatus === 'advance' && <span className="text-[9px] bg-orange-400 text-white px-1.5 py-0.5 rounded">Аванс</span>}
                                 </div>
                             </div>
-                            <button onClick={() => { setNewRecords(newRecords.filter(item => item.id !== r.id)); setIsSaved(false); }} className="text-zinc-300 hover:text-red-500 transition-colors"><X size={16}/></button>
+                            <button onClick={() => { setNewRecords(newRecords.filter(item => item.id !== r.id)); }} className="text-zinc-300 hover:text-red-500 transition-colors"><X size={16}/></button>
                         </div>
                     ))}
                 </div>
+            </div>
+            
+            {/* Кнопка сохранения внизу */}
+            <div className="pt-6 pb-4">
+                <button 
+                    onClick={handleSave}
+                    disabled={!formData.name || !formData.name.trim()}
+                    className={`w-full py-4 rounded-xl text-lg font-bold transition-all ${formData.name && formData.name.trim() ? 'bg-black text-white hover:bg-zinc-800 active:scale-[0.98]' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
+                >
+                    Сохранить клиента
+                </button>
             </div>
         </div>
     </div>
