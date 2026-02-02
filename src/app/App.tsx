@@ -1206,6 +1206,10 @@ const App = () => {
       const c = clients.find(cl => cl.id === clientId);
       if (!c) return;
       
+      const oldRecord = (c.records || []).find(r => r.id === recordId);
+      const oldAdvance = parseFloat(oldRecord?.advance) || 0;
+      const newAdvance = parseFloat(rec.advance) || 0;
+      
       setEvents(prev => prev.filter(e => !(e.clientId === clientId && e.recordId === recordId)));
       setClients(prev => prev.map(cl => cl.id === clientId ? { 
           ...cl, 
@@ -1228,6 +1232,36 @@ const App = () => {
           is_paid: rec.paymentStatus === 'paid',
           is_completed: rec.isCompleted || false
         });
+        
+        // Если аванс увеличился - создаём транзакцию на разницу
+        if (newAdvance > oldAdvance) {
+          const advanceDiff = newAdvance - oldAdvance;
+          addTransaction(
+            advanceDiff,
+            `Аванс: ${rec.service || 'Услуга'}`,
+            `${c.carBrand} ${c.carModel}`,
+            'income',
+            c.name,
+            rec.category || '',
+            rec.advanceDate || rec.date
+          );
+        }
+        
+        // Если статус оплаты изменился на "оплачено" - создаём транзакцию на остаток
+        if (rec.paymentStatus === 'paid' && oldRecord?.paymentStatus !== 'paid') {
+          const totalAmount = parseFloat(rec.amount) || 0;
+          const remainingAmount = totalAmount - newAdvance;
+          if (remainingAmount > 0) {
+            addTransaction(
+              remainingAmount,
+              `Оплата: ${rec.service || 'Услуга'}`,
+              `${c.carBrand} ${c.carModel}`,
+              'income',
+              c.name,
+              rec.category || ''
+            );
+          }
+        }
       } catch (error) {
         console.error('Error updating record:', error);
       }
