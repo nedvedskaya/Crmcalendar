@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Download, Plus, ChevronDown, Filter } from 'lucide-react';
+import { Search, Download, Plus, Filter } from 'lucide-react';
 import { ClientListCard } from '@/app/components/clients';
 import { EmptyState } from '@/app/components/ui';
-import { useSearch, useDateFilter } from '@/app/hooks';
-import ExcelJS from 'exceljs';
+import { useSearch } from '@/app/hooks';
+import { exportToExcel, CLIENTS_COLUMNS, clientRowMapper } from '@/utils/excelExport';
 
 interface ClientsViewProps {
   allClients: any[];
@@ -41,54 +41,14 @@ export const ClientsView = ({
     searchFields: ['name', 'carBrand', 'city', 'phone']
   });
 
-  // Функция экспорта базы клиентов в Excel
-  const exportToExcel = async () => {
-    if (allClients.length === 0) {
-      alert('Нет клиентов для экспорта');
-      return;
-    }
-
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Клиенты');
-
-    worksheet.columns = [
-      { header: 'ФИО', key: 'name', width: 25 },
-      { header: 'Телефон', key: 'phone', width: 18 },
-      { header: 'Город', key: 'city', width: 15 },
-      { header: 'Марка авто', key: 'carBrand', width: 15 },
-      { header: 'Модель авто', key: 'carModel', width: 15 },
-      { header: 'Комментарии', key: 'notes', width: 30 },
-      { header: 'Дата добавления', key: 'createdDate', width: 15 },
-      { header: 'Филиал', key: 'branch', width: 10 }
-    ];
-
-    allClients.forEach(client => {
-      worksheet.addRow({
-        name: client.name || '',
-        phone: client.phone || '',
-        city: client.city || '',
-        carBrand: client.carBrand || '',
-        carModel: client.carModel || '',
-        notes: client.notes || '',
-        createdDate: client.createdDate || '',
-        branch: client.branch || ''
-      });
+  const handleExportToExcel = () => {
+    exportToExcel({
+      sheetName: 'Клиенты',
+      fileName: 'Клиенты',
+      columns: CLIENTS_COLUMNS,
+      data: allClients,
+      rowMapper: clientRowMapper
     });
-
-    worksheet.getRow(1).font = { bold: true };
-
-    const now = new Date();
-    const dateStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
-    const fileName = `Клиенты_${dateStr}.xlsx`;
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -112,7 +72,7 @@ export const ClientsView = ({
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-black">Клиенты</h1>
             <button
-              onClick={exportToExcel}
+              onClick={handleExportToExcel}
               className="w-8 h-8 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center transition-all active:scale-95"
               title="Экспорт в Excel"
             >

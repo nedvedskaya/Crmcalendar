@@ -173,6 +173,12 @@ The application uses secure email/password authentication:
 - **Terser minification** - Production build with console/debugger removal
 
 ## Recent Changes
+- 2026-02-02: DRY refactoring - created SearchInput component (src/app/components/ui/SearchInput.tsx)
+- 2026-02-02: DRY refactoring - AdminPanel now uses SearchInput and shared Modal component
+- 2026-02-02: DRY refactoring - extracted Excel export to utils/excelExport.ts (shared by FinanceView and ClientsView)
+- 2026-02-02: DRY cleanup - removed unused hooks (useFormState, useArrayState, useLocalStorage)
+- 2026-02-02: FinanceView.tsx reduced from 1000 to 957 lines (Excel export extracted)
+- 2026-02-02: AdminPanel.tsx reduced from 479 to 459 lines (SearchInput + Modal)
 - 2026-02-02: DRY refactoring - extracted CalendarView to src/app/components/CalendarView.tsx (218 lines)
 - 2026-02-02: DRY refactoring - extracted AutocompleteInput to src/app/components/ui/AutocompleteInput.tsx
 - 2026-02-02: Removed duplicate AutocompleteInput from App.tsx and TasksView.tsx

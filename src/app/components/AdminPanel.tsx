@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Users, Activity, UserPlus, Search, Shield, ShieldOff, Clock, ArrowLeft, X } from 'lucide-react';
+import { Users, Activity, UserPlus, Shield, ShieldOff, Clock, ArrowLeft } from 'lucide-react';
 import { api } from '@/utils/api';
 import { getRoleName } from '@/utils/permissions';
 import { formatDateTime } from '@/utils/helpers';
+import { SearchInput } from '@/app/components/ui/SearchInput';
+import { Modal } from '@/app/components/ui/Modal';
 
 interface User {
   id: number;
@@ -188,25 +190,14 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-zinc-900">Пользователи</h2>
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-                    <input
-                      type="text"
-                      placeholder="Поиск по имени или email..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                      className="pl-10 pr-4 py-2.5 border border-zinc-200 rounded-lg w-80 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    />
-                  </div>
-                  <button
-                    onClick={handleSearch}
-                    className="px-4 py-2.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 transition-colors"
-                  >
-                    Найти
-                  </button>
-                </div>
+                <SearchInput
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  onSearch={handleSearch}
+                  placeholder="Поиск по имени или email..."
+                  showButton
+                  className="w-96"
+                />
               </div>
 
               <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden">
@@ -388,92 +379,81 @@ export const AdminPanel = ({ onBack }: AdminPanelProps) => {
         </div>
       </div>
 
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
-            <div className="flex items-center justify-between p-6 border-b border-zinc-200">
-              <h3 className="text-lg font-semibold text-zinc-900">Добавить менеджера</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-zinc-400 hover:text-zinc-600">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddUser} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Логин *</label>
-                <input
-                  type="text"
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Пароль *</label>
-                <input
-                  type="password"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  required
-                  minLength={6}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Имя *</label>
-                <input
-                  type="text"
-                  value={newUser.name}
-                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Email</label>
-                <input
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Роль</label>
-                <select
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                >
-                  <option value="manager">Менеджер</option>
-                  <option value="master">Мастер</option>
-                </select>
-              </div>
-              
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 transition-colors"
-                >
-                  Создать
-                </button>
-              </div>
-            </form>
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Добавить менеджера" position="center">
+        <form onSubmit={handleAddUser} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1.5">Логин *</label>
+            <input
+              type="text"
+              value={newUser.username}
+              onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+              className="w-full px-4 py-2.5 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              required
+            />
           </div>
-        </div>
-      )}
+          
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1.5">Пароль *</label>
+            <input
+              type="password"
+              value={newUser.password}
+              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              className="w-full px-4 py-2.5 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              required
+              minLength={6}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1.5">Имя *</label>
+            <input
+              type="text"
+              value={newUser.name}
+              onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+              className="w-full px-4 py-2.5 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1.5">Email</label>
+            <input
+              type="email"
+              value={newUser.email}
+              onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              className="w-full px-4 py-2.5 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1.5">Роль</label>
+            <select
+              value={newUser.role}
+              onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+              className="w-full px-4 py-2.5 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            >
+              <option value="manager">Менеджер</option>
+              <option value="master">Мастер</option>
+            </select>
+          </div>
+          
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowAddModal(false)}
+              className="flex-1 px-4 py-2.5 border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 transition-colors"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 transition-colors"
+            >
+              Создать
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

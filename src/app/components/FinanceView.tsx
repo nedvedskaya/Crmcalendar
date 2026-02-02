@@ -2,10 +2,10 @@ import { useState, useMemo } from 'react';
 import { Plus, X, ArrowDownLeft, ArrowUpRight, Wallet, Edit3, Trash2, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Tag, BarChart3, ChevronDown, Download } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { TransactionItem } from '@/app/components/TransactionItem';
-import ExcelJS from 'exceljs';
 
 // Импорт утилит и констант
 import { BTN_METAL_DARK, BTN_METAL, CARD_METAL, COLORS } from '@/utils/constants';
+import { exportToExcel, TRANSACTIONS_COLUMNS, createTransactionRowMapper } from '@/utils/excelExport';
 import { formatMoney, formatDate, formatDateShort } from '@/utils/helpers';
 import { getInitialTransactionState } from '@/utils/initialStates';
 import { Header } from '@/app/components/ui/Header';
@@ -309,57 +309,14 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
         return grouped;
     }, [transactions]);
     
-    // Функция экспорта в Excel
-    const exportToExcel = async () => {
-        if (transactions.length === 0) {
-            alert('Нет данных для экспорта');
-            return;
-        }
-
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Операции');
-
-        worksheet.columns = [
-            { header: 'Дата', key: 'date', width: 15 },
-            { header: 'Тип', key: 'type', width: 10 },
-            { header: 'Название', key: 'title', width: 25 },
-            { header: 'Сумма', key: 'amount', width: 12 },
-            { header: 'Описание', key: 'description', width: 25 },
-            { header: 'Категория', key: 'category', width: 15 },
-            { header: 'Теги', key: 'tags', width: 20 },
-            { header: 'Филиал', key: 'branch', width: 10 }
-        ];
-
-        transactions.forEach(t => {
-            const category = categories.find(c => c.id === t.category);
-            const transactionTags = tags.filter(tag => t.tags?.includes(tag.id));
-            
-            worksheet.addRow({
-                date: formatDate(t.date || t.createdDate),
-                type: t.type === 'income' ? 'Доход' : 'Расход',
-                title: t.title,
-                amount: Number(t.amount || 0),
-                description: t.sub || '',
-                category: category?.name || 'Без категории',
-                tags: transactionTags.map(tag => tag.name).join(', ') || '',
-                branch: t.branch || ''
-            });
+    const handleExportToExcel = () => {
+        exportToExcel({
+            sheetName: 'Операции',
+            fileName: 'Финансы',
+            columns: TRANSACTIONS_COLUMNS,
+            data: transactions,
+            rowMapper: createTransactionRowMapper(categories, tags)
         });
-
-        worksheet.getRow(1).font = { bold: true };
-
-        const now = new Date();
-        const dateStr = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}`;
-        const fileName = `Финансы_${dateStr}.xlsx`;
-
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(url);
     };
     
     return (
@@ -652,7 +609,7 @@ export const FinanceView = ({ transactions, onAddTransaction, onEditTransaction,
             actionIcon={activeSection === 'operations' ? Plus : null} 
             onAction={activeSection === 'operations' ? () => setIsAdding(true) : null} 
             secondaryIcon={Download}
-            onSecondaryAction={exportToExcel}
+            onSecondaryAction={handleExportToExcel}
             showSecondaryAction={activeSection === 'operations' && transactions.length > 0}
             variant="simple" 
         />
