@@ -222,7 +222,7 @@ const AppointmentInputs = ({ data, onChange, categories }) => {
             
             {/* Сумма */}
             <div>
-                <span className="text-xs text-gray-400 font-semibold block mb-2">Сумма</span>
+                <span className="text-xs text-gray-400 font-semibold block mb-2">Общая сумма услуги</span>
                 <input 
                     type="text" 
                     name="amount" 
