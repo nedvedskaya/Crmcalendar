@@ -1021,40 +1021,44 @@ const ClientDetails = ({ client, onBack, tasks, onEdit, onAddTask, onDelete, onT
                 </div>
             </div>
             
-            {/* Навигация внизу карточки клиента */}
-            <div className="sticky bottom-0 bg-white border-t border-zinc-200 px-6 py-3 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
-                <div className="flex gap-2">
+            {/* Навигация внизу карточки клиента - такая же как основная */}
+            <div className="sticky bottom-0 bg-white border-t border-zinc-200 px-4 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]" style={{paddingBottom: 'max(env(safe-area-inset-bottom, 8px), 8px)', paddingTop: '8px'}}>
+                <div className="flex justify-around">
                     {canAccessTab(userRole, 'clients') && (
-                        <TabButton 
-                            isActive={activeTab === 'clients'}
-                            icon={Users}
-                            label="Клиенты"
+                        <button 
                             onClick={() => { onBack(); setActiveTab('clients'); }}
-                        />
+                            className="flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all active:scale-95"
+                        >
+                            <Users size={22} className="text-zinc-400" />
+                            <span className="text-[10px] font-bold text-zinc-400">Клиенты</span>
+                        </button>
                     )}
                     {canAccessTab(userRole, 'tasks') && (
-                        <TabButton 
-                            isActive={activeTab === 'tasks'}
-                            icon={CheckSquare}
-                            label="Задачи"
+                        <button 
                             onClick={() => { onBack(); setActiveTab('tasks'); }}
-                        />
+                            className="flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all active:scale-95"
+                        >
+                            <CheckSquare size={22} className="text-zinc-400" />
+                            <span className="text-[10px] font-bold text-zinc-400">Задачи</span>
+                        </button>
                     )}
                     {canAccessTab(userRole, 'calendar') && (
-                        <TabButton 
-                            isActive={activeTab === 'calendar'}
-                            icon={Calendar}
-                            label="Календарь"
+                        <button 
                             onClick={() => { onBack(); setActiveTab('calendar'); }}
-                        />
+                            className="flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all active:scale-95"
+                        >
+                            <Calendar size={22} className="text-zinc-400" />
+                            <span className="text-[10px] font-bold text-zinc-400">Календарь</span>
+                        </button>
                     )}
                     {canAccessTab(userRole, 'finance') && (
-                        <TabButton 
-                            isActive={activeTab === 'finance'}
-                            icon={Wallet}
-                            label="Финансы"
+                        <button 
                             onClick={() => { onBack(); setActiveTab('finance'); }}
-                        />
+                            className="flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all active:scale-95"
+                        >
+                            <Wallet size={22} className="text-zinc-400" />
+                            <span className="text-[10px] font-bold text-zinc-400">Финансы</span>
+                        </button>
                     )}
                 </div>
             </div>
