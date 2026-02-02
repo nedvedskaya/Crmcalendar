@@ -323,15 +323,7 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
         <div className="px-6 pt-safe pb-4 bg-white border-b border-zinc-200 flex items-center justify-between shrink-0" style={{paddingTop: 'max(env(safe-area-inset-top, 12px), 48px)'}}>
             <Button variant="ghost" size="md" onClick={handleClose} className="text-base">Назад</Button>
             <span className="text-xl font-black">{String(title)}</span>
-            <Button 
-                variant="ghost" 
-                size="md" 
-                onClick={handleSave}
-                className="text-base font-bold !text-orange-500"
-                disabled={!formData.name}
-            >
-                Сохранить
-            </Button>
+            <div className="w-[72px]"></div>
         </div>
         
         <div className="flex-1 overflow-y-auto px-6 pt-6 space-y-8 overscroll-contain -webkit-overflow-scrolling-touch" style={{paddingBottom: 'calc(120px + env(safe-area-inset-bottom, 20px)'}}>
