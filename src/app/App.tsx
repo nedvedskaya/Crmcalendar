@@ -233,6 +233,31 @@ const AppointmentInputs = ({ data, onChange, categories }) => {
                 />
             </div>
             
+            {/* Аванс */}
+            <div className="flex gap-3">
+                <div className="flex-1">
+                    <span className="text-xs text-gray-400 font-semibold block mb-2">Аванс</span>
+                    <input 
+                        type="text" 
+                        name="advance" 
+                        value={String(data.advance || '')} 
+                        onChange={onChange} 
+                        placeholder="0 ₽" 
+                        className="w-full bg-white border border-zinc-300 rounded-xl p-4 font-bold text-black outline-none focus:border-black shadow-sm" 
+                    />
+                </div>
+                <div className="flex-1">
+                    <span className="text-xs text-gray-400 font-semibold block mb-2">Дата аванса</span>
+                    <input 
+                        type="date" 
+                        name="advanceDate" 
+                        value={String(data.advanceDate || '')} 
+                        onChange={onChange} 
+                        className="w-full bg-white border border-zinc-300 rounded-xl p-4 font-medium text-black outline-none focus:border-black shadow-sm" 
+                    />
+                </div>
+            </div>
+            
             {/* Статус оплаты */}
             <div>
                 <span className="text-xs text-gray-400 font-semibold block mb-2">Оплата</span>
@@ -1719,21 +1744,22 @@ const App = () => {
     return <AdminPanel onBack={() => setShowAdmin(false)} />;
   }
 
-  const addTransaction = async (amount, title, sub, type = 'income', clientName = '', category = '') => {
-      const now = new Date();
+  const addTransaction = async (amount, title, sub, type = 'income', clientName = '', category = '', customDate = null) => {
+      const transactionDate = customDate || getDateStr(0);
       const transactionData = { 
-          title: type === 'income' ? `Оплата: ${title}` : title, 
+          title: title, 
           description: clientName ? `${clientName} • ${sub}` : sub, 
           amount: Number(amount), 
           type: type,
-          category: category || ''
+          category: category || '',
+          date: transactionDate
       };
       try {
         const saved = await api.createTransaction(transactionData);
         setTransactions(prev => [{ 
           ...saved,
           sub: saved.description,
-          createdDate: getDateStr(0)
+          createdDate: transactionDate
         }, ...prev]);
       } catch (error) {
         console.error('Error saving transaction:', error);
@@ -1741,8 +1767,8 @@ const App = () => {
           id: Date.now()+Math.random(), 
           ...transactionData,
           sub: transactionData.description,
-          date: now.toISOString(),
-          createdDate: getDateStr(0)
+          date: transactionDate,
+          createdDate: transactionDate
         }, ...prev]);
       }
   };
@@ -1851,12 +1877,30 @@ const App = () => {
       setClients(prev => prev.map(cl => cl.id === clientId ? { ...cl, records: [...(cl.records || []), newRecord] } : cl));
       setEvents(prev => [...prev, { id: tempRecordId + 1, clientId: clientId, recordId: tempRecordId, branch: c.branch, date: rec.date, endDate: rec.endDate, time: rec.time, service: rec.service, title: `${c.carBrand} (${rec.service})`, type: 'work' }]);
       
+      // Если есть аванс - создаём транзакцию аванса
+      if (rec.advance && parseFloat(rec.advance) > 0) {
+        addTransaction(
+          rec.advance,
+          `Аванс: ${rec.service || 'Услуга'}`,
+          `${c.carBrand} ${c.carModel}`,
+          'income',
+          c.name,
+          rec.category || '',
+          rec.advanceDate || rec.date
+        );
+      }
+      
       try {
         const recordData = {
           client_id: clientId,
           service: rec.service,
           date: rec.date,
           amount: rec.amount || 0,
+          advance: rec.advance || 0,
+          advance_date: rec.advanceDate || null,
+          end_date: rec.endDate || null,
+          category_id: rec.category || null,
+          payment_status: rec.paymentStatus || 'none',
           is_paid: rec.isPaid || false,
           is_completed: rec.isCompleted || false,
           notes: JSON.stringify({ ...rec, clientId })
@@ -1905,10 +1949,15 @@ const App = () => {
       const record = (c.records || []).find(r => r.id === recordId);
       if (!record) return;
       
-      if (record.amount) {
+      // Вычисляем остаток: полная сумма минус аванс
+      const totalAmount = parseFloat(record.amount) || 0;
+      const advanceAmount = parseFloat(record.advance) || 0;
+      const remainingAmount = totalAmount - advanceAmount;
+      
+      if (remainingAmount > 0) {
           addTransaction(
-              record.amount, 
-              record.service || 'Услуга', 
+              remainingAmount, 
+              `Оплата: ${record.service || 'Услуга'}`, 
               `${c.carBrand} ${c.carModel}`, 
               'income', 
               c.name, 
@@ -1924,7 +1973,8 @@ const App = () => {
       try {
         await api.updateClientRecord(recordId, {
           is_paid: true,
-          is_completed: true
+          is_completed: true,
+          payment_status: 'paid'
         });
       } catch (error) {
         console.error('Error completing record:', error);

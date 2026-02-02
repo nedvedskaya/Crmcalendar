@@ -17,6 +17,8 @@ export const getInitialTaskState = (branch?: string) => ({
 export const getInitialRecordState = (branch?: string) => ({
   service: '',
   amount: '',
+  advance: '', // Сумма аванса
+  advanceDate: '', // Дата внесения аванса
   date: getDateStr(0),
   endDate: getDateStr(0), // Дата окончания - по умолчанию сегодня
   time: '10:00',
@@ -69,6 +71,8 @@ export const getInitialCalendarEntryState = (branch?: string) => ({
   clientName: '',
   service: '',
   amount: '',
+  advance: '', // Сумма аванса
+  advanceDate: '', // Дата внесения аванса
   date: getDateStr(0),
   endDate: '', // Дата окончания для интервальных броней
   time: '10:00',

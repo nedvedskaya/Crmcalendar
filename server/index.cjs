@@ -631,6 +631,23 @@ async function initDatabase() {
     try {
       await client.query(`CREATE INDEX IF NOT EXISTS idx_client_records_client ON ${SCHEMA}.client_records(client_id)`);
     } catch (e) {}
+    
+    // Добавление колонок для аванса в client_records
+    try {
+      await client.query(`ALTER TABLE ${SCHEMA}.client_records ADD COLUMN IF NOT EXISTS advance DECIMAL(10,2) DEFAULT 0`);
+    } catch (e) {}
+    try {
+      await client.query(`ALTER TABLE ${SCHEMA}.client_records ADD COLUMN IF NOT EXISTS advance_date DATE`);
+    } catch (e) {}
+    try {
+      await client.query(`ALTER TABLE ${SCHEMA}.client_records ADD COLUMN IF NOT EXISTS end_date DATE`);
+    } catch (e) {}
+    try {
+      await client.query(`ALTER TABLE ${SCHEMA}.client_records ADD COLUMN IF NOT EXISTS category_id INTEGER`);
+    } catch (e) {}
+    try {
+      await client.query(`ALTER TABLE ${SCHEMA}.client_records ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) DEFAULT 'none'`);
+    } catch (e) {}
     try {
       await client.query(`CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user ON ${SCHEMA}.user_subscriptions(user_id)`);
     } catch (e) {}
@@ -1859,11 +1876,11 @@ app.get('/api/client-records', authMiddleware, async (req, res) => {
 
 app.post('/api/client-records', authMiddleware, async (req, res) => {
   try {
-    const { client_id, vehicle_id, booking_id, service_name, description, amount, date, time, master_id, branch_id, is_paid, is_completed } = req.body;
+    const { client_id, vehicle_id, booking_id, service_name, description, amount, date, time, master_id, branch_id, is_paid, is_completed, advance, advance_date, end_date, category_id, payment_status } = req.body;
     if (!client_id || !service_name || !date) return res.status(400).json({ error: 'Client ID, service name and date are required' });
     const result = await pool.query(
-      `INSERT INTO ${SCHEMA}.client_records (client_id, vehicle_id, booking_id, service_name, description, amount, date, time, master_id, branch_id, is_paid, is_completed) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-      [client_id, vehicle_id, booking_id, service_name, description, amount || 0, date, time, master_id, branch_id, is_paid || false, is_completed || false]
+      `INSERT INTO ${SCHEMA}.client_records (client_id, vehicle_id, booking_id, service_name, description, amount, date, time, master_id, branch_id, is_paid, is_completed, advance, advance_date, end_date, category_id, payment_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
+      [client_id, vehicle_id, booking_id, service_name, description, amount || 0, date, time, master_id, branch_id, is_paid || false, is_completed || false, advance || 0, advance_date || null, end_date || null, category_id || null, payment_status || 'none']
     );
     res.json(result.rows[0]);
   } catch (error) {
@@ -1875,10 +1892,10 @@ app.post('/api/client-records', authMiddleware, async (req, res) => {
 app.put('/api/client-records/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { service_name, description, amount, date, time, is_paid, is_completed } = req.body;
+    const { service_name, description, amount, date, time, is_paid, is_completed, advance, advance_date, end_date, category_id, payment_status } = req.body;
     const result = await pool.query(
-      `UPDATE ${SCHEMA}.client_records SET service_name = $1, description = $2, amount = $3, date = $4, time = $5, is_paid = $6, is_completed = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $8 RETURNING *`,
-      [service_name, description, amount, date, time, is_paid, is_completed, id]
+      `UPDATE ${SCHEMA}.client_records SET service_name = $1, description = $2, amount = $3, date = $4, time = $5, is_paid = $6, is_completed = $7, advance = $8, advance_date = $9, end_date = $10, category_id = $11, payment_status = $12, updated_at = CURRENT_TIMESTAMP WHERE id = $13 RETURNING *`,
+      [service_name, description, amount, date, time, is_paid, is_completed, advance || 0, advance_date || null, end_date || null, category_id || null, payment_status || 'none', id]
     );
     res.json(result.rows[0]);
   } catch (error) {
