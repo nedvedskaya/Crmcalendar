@@ -162,6 +162,8 @@ The application uses secure email/password authentication:
 - `managerOrOwner` - Restricts access to manager or owner roles
 
 ## Recent Changes
+- 2026-02-02: Mobile optimization for iPhone - fixed viewport height, safe area insets, scroll areas
+- 2026-02-02: Russian phone auto-formatting (+7 XXX XXX-XX-XX) with empty initial state
 - 2026-01-26: Added comprehensive input sanitization (XSS, SQL injection protection) via middleware
 - 2026-01-26: Added global error handlers (uncaughtException, unhandledRejection) to prevent silent server crashes
 - 2026-01-26: Added connection timeout (10s) and pool settings to PostgreSQL configuration

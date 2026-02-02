@@ -288,8 +288,8 @@ const TabBar = ({ activeTab, setActiveTab, userRole = 'owner' }) => {
   const tabs = allTabs.filter(tab => canAccessTab(userRole, tab.id));
   
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-zinc-200 z-[250] h-[84px] pb-safe shrink-0">
-      <div className="flex justify-between items-center max-w-lg mx-auto h-full px-4">
+    <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-zinc-200 z-[250] shrink-0" style={{paddingBottom: 'env(safe-area-inset-bottom, 0px)', minHeight: '64px'}}>
+      <div className="flex justify-between items-center max-w-lg mx-auto px-4 py-2">
         {tabs.map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center justify-center w-full transition-all active:scale-90 ${activeTab === tab.id ? 'text-black' : 'text-zinc-400'}`}>
             <tab.icon size={24} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
@@ -430,8 +430,8 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
   };
 
   return (
-    <div className="absolute inset-0 z-[200] bg-zinc-50 flex flex-col h-full overflow-hidden animate-in slide-in-from-bottom-5">
-        <div className="px-6 pt-12 pb-4 bg-white border-b border-zinc-200 flex items-center justify-between sticky top-0 z-10 shrink-0">
+    <div className="fixed inset-0 z-[200] bg-zinc-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5" style={{height: '100dvh', minHeight: '-webkit-fill-available'}}>
+        <div className="px-6 pt-safe pb-4 bg-white border-b border-zinc-200 flex items-center justify-between shrink-0" style={{paddingTop: 'max(env(safe-area-inset-top, 12px), 48px)'}}>
             <Button variant="ghost" size="md" onClick={onCancel} className="text-base">Отмена</Button>
             <span className="text-xl font-black">{String(title)}</span>
             <Button 
@@ -444,8 +444,7 @@ const ClientForm = ({ onSave, onCancel, client, title = "Новый клиент
             </Button>
         </div>
         
-        {/* Увеличенный отступ pb-96 для предотвращения перекрытия нижним меню */}
-        <div className="flex-1 overflow-y-auto px-6 pt-6 space-y-8 pb-96 overscroll-contain">
+        <div className="flex-1 overflow-y-auto px-6 pt-6 space-y-8 overscroll-contain -webkit-overflow-scrolling-touch" style={{paddingBottom: 'calc(120px + env(safe-area-inset-bottom, 20px)'}}>
             <div className="space-y-4">
                 <div className="flex justify-between items-center"><h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">Данные клиента</h3>{!readOnlyIdentity && <span className="text-[10px] font-bold text-zinc-400 bg-zinc-100 px-2 py-1 rounded-md">{formatDate(formData.createdAt)}</span>}</div>
                 <div className="space-y-3">
@@ -621,12 +620,12 @@ const ClientDetails = ({ client, onBack, tasks, onEdit, onAddTask, onDelete, onT
     };
 
     return (
-        <div className="absolute inset-0 z-[120] bg-zinc-50 flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-300">
-            <div className="px-5 pt-12 pb-4 bg-white border-b border-zinc-200 flex items-center justify-between sticky top-0 z-10 h-[92px] shrink-0">
+        <div className="fixed inset-0 z-[120] bg-zinc-50 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300" style={{height: '100dvh', minHeight: '-webkit-fill-available'}}>
+            <div className="px-5 pb-4 bg-white border-b border-zinc-200 flex items-center justify-between shrink-0" style={{paddingTop: 'max(env(safe-area-inset-top, 12px), 48px)'}}>
                 <button onClick={onBack} className="flex items-center gap-1 text-zinc-600 font-bold"><ChevronLeft size={24} /> Назад</button>
                 <div className="flex gap-4"><button onClick={onEdit} className="text-zinc-500 hover:text-black transition-colors"><Edit3 size={20} /></button><button onClick={onDelete} className="text-red-500 transition-colors"><Trash2 size={20} /></button></div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-[100px] overscroll-contain">
+            <div className="flex-1 overflow-y-auto p-6 space-y-8 overscroll-contain" style={{paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 20px)', WebkitOverflowScrolling: 'touch'}}>
                 <div className="text-center">
                     <h2 className="text-3xl font-black text-black leading-tight mb-2">{String(client.name || '')}</h2>
                     <span className="text-xl font-medium text-zinc-400">{String(client.phone || '')}</span>
@@ -1099,7 +1098,7 @@ const TasksView = ({ tasks, onToggleTask, onAddTask, onDeleteTask, onEditTask, c
             
             {isAdding && (
                 <div className="absolute inset-0 z-[150] bg-zinc-900/50 backdrop-blur-sm flex items-end animate-in fade-in">
-                    <div className="w-full bg-white rounded-t-[32px] p-6 shadow-2xl space-y-6 pb-32 overflow-y-auto max-h-[90vh]">
+                    <div className="w-full bg-white rounded-t-[32px] p-6 shadow-2xl space-y-6 overflow-y-auto" style={{maxHeight: '90dvh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 20px))'}}>
                         <div className="flex justify-between items-center">
                             <h3 className="text-xl font-black">{editingTask ? 'Редактировать задачу' : 'Новая задача'}</h3>
                             <button onClick={handleCancel} className="bg-zinc-100 p-2 rounded-full">
@@ -1183,7 +1182,7 @@ const TasksView = ({ tasks, onToggleTask, onAddTask, onDeleteTask, onEditTask, c
                 </div>
             )}
             
-            <div className="flex-1 overflow-y-auto px-6 mt-2 space-y-2.5 pt-3 pb-32 overscroll-contain">
+            <div className="flex-1 overflow-y-auto px-6 mt-2 space-y-2.5 pt-3 overscroll-contain" style={{paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 20px))', WebkitOverflowScrolling: 'touch'}}>
                 {/* Активные задачи */}
                 {taskFilter === 'all' ? (
                     <>
@@ -1327,7 +1326,7 @@ const CalendarView = ({ events, clients, onAddRecord, onOpenClient, categories, 
                 </div>
                 <div className="text-sm font-bold text-zinc-400 pr-2">{year}</div>
             </div>
-             <div className="flex-1 overflow-y-auto bg-white p-2 overscroll-contain pb-24">
+             <div className="flex-1 overflow-y-auto bg-white p-2 overscroll-contain" style={{paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 20px))', WebkitOverflowScrolling: 'touch'}}>
                 <div className="grid grid-cols-7 border-b border-zinc-100 pb-2 mb-2 text-center text-[10px] font-black text-zinc-400 uppercase">{week.map(d => <div key={d}>{d}</div>)}</div>
                 <CalendarGrid
                     year={year}
@@ -1344,7 +1343,7 @@ const CalendarView = ({ events, clients, onAddRecord, onOpenClient, categories, 
             {/* Модальное окно с планами на день */}
             {selectedDate && (
                 <div className="absolute inset-0 z-[150] bg-zinc-900/50 backdrop-blur-sm flex items-end animate-in fade-in" onClick={() => setSelectedDate(null)}>
-                    <div className="w-full bg-white rounded-t-[32px] p-6 shadow-2xl max-h-[80vh] overflow-y-auto pb-32" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full bg-white rounded-t-[32px] p-6 shadow-2xl overflow-y-auto" style={{maxHeight: '80dvh', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 20px))'}} onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-6">
                             <div>
                                 <h3 className="text-2xl font-black">{formatDate(selectedDate)}</h3>
@@ -2169,7 +2168,7 @@ const App = () => {
   const filteredEvents = events; // Показываем все события независимо от филиала
 
   return (
-    <div className="w-full h-screen bg-white flex flex-col overflow-hidden">
+    <div className="app-container w-full bg-white flex flex-col overflow-hidden">
       {/* Меню пользователя с кнопкой выхода */}
       <UserMenu onLogout={handleLogout} onShowProfile={() => setShowProfile(true)} onShowAdmin={() => setShowAdmin(true)} />
       
@@ -2184,35 +2183,50 @@ const App = () => {
       </div>
       <TabBar activeTab={activeTab} setActiveTab={setActiveTab} userRole={user?.role || 'owner'} />
       <style>{`
-        * { -webkit-tap-highlight-color: transparent; }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        :root {
+          --app-height: 100vh;
+          --safe-bottom: env(safe-area-inset-bottom, 0px);
+          --safe-top: env(safe-area-inset-top, 0px);
+        }
+        html { 
+          height: 100%; 
+          overflow: hidden;
+        }
         body { 
-          font-family: 'Inter', sans-serif; 
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
           background-color: #ffffff; 
           margin: 0; 
           padding: 0; 
-          height: 100vh; 
-          width: 100vw; 
+          height: 100%;
+          height: -webkit-fill-available;
+          width: 100%; 
           overflow: hidden;
-          position: fixed;
           overscroll-behavior: none;
+          -webkit-overflow-scrolling: touch;
+          padding-top: var(--safe-top);
+          padding-bottom: var(--safe-bottom);
         }
         #root {
-          height: 100vh;
-          width: 100vw;
+          height: 100%;
+          height: -webkit-fill-available;
+          width: 100%;
           overflow: hidden;
         }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+        .app-container {
+          height: 100%;
+          height: -webkit-fill-available;
+          min-height: -webkit-fill-available;
+        }
+        .pb-safe { padding-bottom: calc(20px + var(--safe-bottom)); }
         .animate-fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         ::-webkit-scrollbar { display: none; }
         input, textarea, select { font-size: 16px !important; }
         
-        /* Предотвращение резинового эффекта на iOS */
-        html, body {
-          position: fixed;
-          overflow: hidden;
-          width: 100%;
-          height: 100%;
+        @supports (height: 100dvh) {
+          :root { --app-height: 100dvh; }
+          body, #root, .app-container { height: 100dvh; min-height: 100dvh; }
         }
       `}</style>
     </div>
