@@ -654,7 +654,7 @@ const CalendarView = ({ events, clients, onAddRecord, onOpenClient, categories, 
                                                     >
                                                         <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wide">Телефон</p>
                                                         <div className="flex items-center gap-1.5 mt-0.5">
-                                                            <p className="text-sm font-bold text-black">{client.phone}</p>
+                                                            <p className="text-sm font-bold text-black whitespace-nowrap">{client.phone}</p>
                                                             <Copy size={14} className="text-orange-500 shrink-0" />
                                                         </div>
                                                     </div>
