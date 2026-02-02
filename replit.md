@@ -173,6 +173,9 @@ The application uses secure email/password authentication:
 - **Terser minification** - Production build with console/debugger removal
 
 ## Recent Changes
+- 2026-02-02: Security fix - added managerOrOwner middleware to DELETE endpoints (clients, tasks, transactions)
+- 2026-02-02: Fixed double-click protection in handleCompleteRecord (prevents duplicate transactions)
+- 2026-02-02: Added rollback and error notifications when saving records fails
 - 2026-02-02: Fixed categories/tags persistence - now properly saved to database via API calls
 - 2026-02-02: Fixed client data persistence - added city/branch columns to clients table, updated API and frontend mapping
 - 2026-02-02: Client fields now properly saved: name, phone, email, city, source, branch + carBrand/carModel/vin/licensePlate in notes JSON

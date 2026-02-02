@@ -1350,7 +1350,7 @@ app.put('/api/clients/:id', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/clients/:id', authMiddleware, async (req, res) => {
+app.delete('/api/clients/:id', authMiddleware, managerOrOwner, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.clients WHERE id = $1`, [id]);
@@ -1511,7 +1511,7 @@ app.put('/api/transactions/:id', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/transactions/:id', authMiddleware, async (req, res) => {
+app.delete('/api/transactions/:id', authMiddleware, managerOrOwner, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.transactions WHERE id = $1`, [id]);
@@ -1567,7 +1567,7 @@ app.put('/api/tasks/:id', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/tasks/:id', authMiddleware, async (req, res) => {
+app.delete('/api/tasks/:id', authMiddleware, managerOrOwner, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`DELETE FROM ${SCHEMA}.tasks WHERE id = $1`, [id]);

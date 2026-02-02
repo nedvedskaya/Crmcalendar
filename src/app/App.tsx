@@ -336,6 +336,9 @@ const App = () => {
   // Категории и теги (загружаются через API)
   const [categories, setCategories] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
+  
+  // Защита от двойного клика (Set содержит recordId которые сейчас обрабатываются)
+  const [processingRecords, setProcessingRecords] = useState<Set<number>>(new Set());
 
   // Загрузка данных из API при монтировании
   useEffect(() => {
@@ -725,6 +728,12 @@ const App = () => {
               }
             } catch (e) {
               console.error('Error creating record:', e);
+              // Помечаем запись как не сохранённую (добавляем флаг ошибки)
+              setClients(prev => prev.map(cl => cl.id === realId ? { 
+                ...cl, 
+                records: (cl.records || []).map(r => r.id === rec.id ? { ...r, saveError: true } : r) 
+              } : cl));
+              alert(`Ошибка сохранения записи "${rec.service}". Попробуйте сохранить позже.`);
             }
           }
         }
@@ -753,10 +762,13 @@ const App = () => {
             setTasks(prev => prev.map(t => t.id === task.id ? { ...t, id: savedTask.id, clientId: realId, date: task.date, time: task.time } : t));
           } catch (e) {
             console.error('Error creating task:', e);
+            // Помечаем задачу как не сохранённую
+            setTasks(prev => prev.map(t => t.id === task.id ? { ...t, saveError: true } : t));
           }
         }
       } catch (error) {
         console.error('Error saving client to server:', error);
+        alert('Ошибка сохранения клиента. Данные сохранены локально.');
       }
   };
 
@@ -908,35 +920,73 @@ const App = () => {
       const record = (c.records || []).find(r => r.id === recordId);
       if (!record) return;
       
-      // Вычисляем остаток: полная сумма минус аванс
-      const totalAmount = parseFloat(record.amount) || 0;
-      const advanceAmount = parseFloat(record.advance) || 0;
-      const remainingAmount = totalAmount - advanceAmount;
-      
-      if (remainingAmount > 0) {
-          addTransaction(
-              remainingAmount, 
-              `Оплата: ${record.service || 'Услуга'}`, 
-              `${c.carBrand} ${c.carModel}`, 
-              'income', 
-              c.name, 
-              record.category || ''
-          );
+      // Защита от двойного клика
+      if (processingRecords.has(recordId)) {
+        console.log('Record is already being processed:', recordId);
+        return;
       }
       
+      // Защита от повторной оплаты уже оплаченной записи
+      if (record.isPaid || record.paymentStatus === 'paid') {
+        console.log('Record is already paid:', recordId);
+        return;
+      }
+      
+      // Помечаем запись как обрабатываемую
+      setProcessingRecords(prev => new Set(prev).add(recordId));
+      
+      // СНАЧАЛА обновляем статус локально (предотвращает повторное создание транзакции)
       setClients(prev => prev.map(cl => cl.id === clientId ? { 
           ...cl, 
           records: (cl.records || []).map(r => r.id === recordId ? { ...r, isPaid: true, isCompleted: true, paymentStatus: 'paid' } : r) 
       } : cl));
       
+      // Вычисляем остаток: полная сумма минус аванс
+      const totalAmount = parseFloat(record.amount) || 0;
+      const advanceAmount = parseFloat(record.advance) || 0;
+      const remainingAmount = totalAmount - advanceAmount;
+      
       try {
+        // СНАЧАЛА сохраняем в БД
         await api.updateClientRecord(recordId, {
           is_paid: true,
           is_completed: true,
           payment_status: 'paid'
         });
+        
+        // Создаём транзакцию ТОЛЬКО ПОСЛЕ успешного сохранения в БД
+        if (remainingAmount > 0) {
+            try {
+              await addTransaction(
+                  remainingAmount, 
+                  `Оплата: ${record.service || 'Услуга'}`, 
+                  `${c.carBrand} ${c.carModel}`, 
+                  'income', 
+                  c.name, 
+                  record.category || ''
+              );
+            } catch (txError) {
+              console.error('Error creating transaction:', txError);
+              // Транзакция не создалась, но запись уже отмечена как оплаченная
+              // Показываем предупреждение пользователю
+              alert('Запись отмечена как оплаченная, но транзакция не создана. Добавьте транзакцию вручную.');
+            }
+        }
       } catch (error) {
         console.error('Error completing record:', error);
+        // Откатываем локальное состояние при ошибке
+        setClients(prev => prev.map(cl => cl.id === clientId ? { 
+            ...cl, 
+            records: (cl.records || []).map(r => r.id === recordId ? { ...r, isPaid: false, isCompleted: false, paymentStatus: record.paymentStatus || 'none' } : r) 
+        } : cl));
+        alert('Ошибка при сохранении. Попробуйте снова.');
+      } finally {
+        // Убираем запись из обрабатываемых
+        setProcessingRecords(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(recordId);
+          return newSet;
+        });
       }
   };
   
