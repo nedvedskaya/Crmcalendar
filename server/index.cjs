@@ -239,14 +239,12 @@ console.log('Starting UGT Tuners backend server...');
 console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 
 const pool = new Pool({
-  host: process.env.POSTGRESQL_HOST,
-  port: parseInt(process.env.POSTGRESQL_PORT || '5432'),
-  user: process.env.POSTGRESQL_USER,
-  password: process.env.POSTGRESQL_PASSWORD,
-  database: process.env.POSTGRESQL_DBNAME,
-  ssl: {
-    rejectUnauthorized: false
-  },
+  host: process.env.PGHOST,
+  port: parseInt(process.env.PGPORT || '5432'),
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  database: process.env.PGDATABASE,
+  ssl: false,
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
   max: 10
