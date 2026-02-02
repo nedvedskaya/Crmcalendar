@@ -1409,13 +1409,14 @@ const App = () => {
           description: task.description || '',
           status: task.completed ? 'completed' : 'pending',
           priority: task.urgency || task.isUrgent ? 'high' : 'medium',
-          client_id: task.clientId || null
+          client_id: task.clientId || null,
+          due_date: task.date || null
         };
         
         const saved = await api.createTask(taskData);
         
-        // Обновляем ID задачи на реальный из БД
-        setTasks(prev => prev.map(t => t.id === tempId ? { ...t, id: saved.id } : t));
+        // Обновляем ID задачи на реальный из БД, сохраняя clientId
+        setTasks(prev => prev.map(t => t.id === tempId ? { ...t, id: saved.id, clientId: task.clientId || null } : t));
       } catch (error) {
         console.error('Error saving task:', error);
       }
