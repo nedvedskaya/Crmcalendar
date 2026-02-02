@@ -161,7 +161,18 @@ The application uses secure email/password authentication:
 - `ownerOnly` - Restricts access to owner role
 - `managerOrOwner` - Restricts access to manager or owner roles
 
+## Performance Optimizations
+- **Self-hosted Inter font** - No external dependencies on Google Fonts (works in Russia with/without VPN)
+- **Gzip compression** - All responses compressed with level 6
+- **Code splitting** - React vendor chunk, UI vendor chunk separated
+- **Font preloading** - Critical fonts preloaded in HTML head
+- **Loading skeleton** - Instant visual feedback before app loads
+- **Long-term caching** - JS/CSS/fonts cached for 1 year, HTML always fresh
+- **Terser minification** - Production build with console/debugger removal
+
 ## Recent Changes
+- 2026-02-02: Performance optimization - self-hosted fonts, compression, code splitting, loading skeleton
+- 2026-02-02: Fixed client form auto-save closing form prematurely
 - 2026-02-02: DRY refactoring - App.tsx reduced from ~2491 to ~1626 lines (~35% reduction)
 - 2026-02-02: Extracted ClientDetails component to src/app/components/ClientDetails.tsx (511 lines)
 - 2026-02-02: Extracted TasksView component to src/app/components/TasksView.tsx (403 lines)
