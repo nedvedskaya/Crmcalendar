@@ -31,7 +31,7 @@ export const FormField = ({
   className = '',
   rows = 3
 }: FormFieldProps) => {
-  const baseInputClass = "w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm outline-none focus:border-orange-500 transition-all shadow-sm disabled:bg-zinc-50 disabled:text-zinc-400";
+  const baseInputClass = "w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm outline-none focus:border-orange-500 transition-all shadow-sm disabled:bg-zinc-50 disabled:text-zinc-400 whitespace-nowrap";
   const labelClass = "text-xs font-black text-zinc-400 uppercase tracking-widest mb-2 block";
 
   const renderInput = () => {
