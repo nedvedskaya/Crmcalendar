@@ -1312,27 +1312,33 @@ const App = () => {
       if (!record) return;
       
       const transactionsToDelete: number[] = [];
+      const serviceName = record.service || 'Услуга';
+      const totalAmount = Number(record.amount) || 0;
+      const advanceAmount = Number(record.advance) || 0;
+      const remainingAmount = totalAmount - advanceAmount;
       
-      if (record.amount) {
-          const paymentTitle = `Оплата: ${record.service || 'Услуга'}`;
+      // Ищем транзакцию оплаты (остаток после аванса)
+      if (remainingAmount > 0) {
+          const paymentTitle = `Оплата: ${serviceName}`;
           const matchingPayment = transactions.find(t => {
-              const isSameAmount = t.amount === Number(record.amount) || t.amount === (Number(record.amount) - (Number(record.advance) || 0));
-              const isSameTitle = t.title === paymentTitle;
-              const isSameSub = t.sub?.includes(c.name);
+              const amountMatch = Math.abs(Number(t.amount) - remainingAmount) < 0.01;
+              const titleMatch = t.title === paymentTitle;
+              const subMatch = t.sub?.includes(c.name) || t.description?.includes(c.name);
               const isIncome = t.type === 'income';
-              return isSameAmount && isSameTitle && isSameSub && isIncome;
+              return amountMatch && titleMatch && (subMatch) && isIncome;
           });
           if (matchingPayment) transactionsToDelete.push(matchingPayment.id);
       }
       
-      if (record.advance && Number(record.advance) > 0) {
-          const advanceTitle = `Аванс: ${record.service || 'Услуга'}`;
+      // Ищем транзакцию аванса
+      if (advanceAmount > 0) {
+          const advanceTitle = `Аванс: ${serviceName}`;
           const matchingAdvance = transactions.find(t => {
-              const isSameAmount = t.amount === Number(record.advance);
-              const isSameTitle = t.title === advanceTitle;
-              const isSameSub = t.sub?.includes(c.name);
+              const amountMatch = Math.abs(Number(t.amount) - advanceAmount) < 0.01;
+              const titleMatch = t.title === advanceTitle;
+              const subMatch = t.sub?.includes(c.name) || t.description?.includes(c.name);
               const isIncome = t.type === 'income';
-              return isSameAmount && isSameTitle && isSameSub && isIncome;
+              return amountMatch && titleMatch && (subMatch) && isIncome;
           });
           if (matchingAdvance) transactionsToDelete.push(matchingAdvance.id);
       }
