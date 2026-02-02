@@ -171,6 +171,9 @@ The application uses secure email/password authentication:
 - **Terser minification** - Production build with console/debugger removal
 
 ## Recent Changes
+- 2026-02-02: DRY refactoring - extracted TaskItem to shared component src/app/components/ui/TaskItem.tsx
+- 2026-02-02: Removed 3 duplicate TaskItem definitions from App.tsx, TasksView.tsx, ClientDetails.tsx
+- 2026-02-02: Deleted unused dialog.tsx component
 - 2026-02-02: Performance optimization - self-hosted fonts, compression, code splitting, loading skeleton
 - 2026-02-02: Fixed client form auto-save closing form prematurely
 - 2026-02-02: DRY refactoring - App.tsx reduced from ~2491 to ~1626 lines (~35% reduction)
