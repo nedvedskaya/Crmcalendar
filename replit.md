@@ -171,6 +171,13 @@ The application uses secure email/password authentication:
 - **Terser minification** - Production build with console/debugger removal
 
 ## Recent Changes
+- 2026-02-02: DRY refactoring - extracted CalendarView to src/app/components/CalendarView.tsx (218 lines)
+- 2026-02-02: DRY refactoring - extracted AutocompleteInput to src/app/components/ui/AutocompleteInput.tsx
+- 2026-02-02: Removed duplicate AutocompleteInput from App.tsx and TasksView.tsx
+- 2026-02-02: App.tsx reduced from ~1627 to ~1330 lines (~18% additional reduction)
+- 2026-02-02: Deleted 46 unused shadcn UI components (~100KB+ dead code)
+- 2026-02-02: COLORS constant centralized in utils/constants.ts
+- 2026-02-02: Replaced custom Eye/EyeOff SVGs with lucide-react icons in LoginScreen
 - 2026-02-02: DRY refactoring - extracted TaskItem to shared component src/app/components/ui/TaskItem.tsx
 - 2026-02-02: Removed 3 duplicate TaskItem definitions from App.tsx, TasksView.tsx, ClientDetails.tsx
 - 2026-02-02: Deleted unused dialog.tsx component
